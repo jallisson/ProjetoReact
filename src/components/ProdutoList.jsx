@@ -45,238 +45,262 @@ const ProdutoList = ({ searchParams }) => {
     { id: 'venda4', header: 'Venda4', editable: true, type: 'number', truncate: true }
   ];
 
- // Função para buscar dados iniciais
-const fetchInitialProdutos = useCallback(async () => {
-  try {
-    setLoading(true);
-    setPage(1);
-    
-    const params = {
-      page: 1,
-      limit: 100, // Carregar mais itens inicialmente para filtros locais
-      sort: 'asc'
-    };
-    
-    let data = [];
-    
+  // Função para buscar dados iniciais
+  const fetchInitialProdutos = useCallback(async () => {
     try {
-      if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
-        // Se tivermos parâmetros de pesquisa que podem ser enviados para o backend
-        // Usando pesquisa no backend para filtros específicos
-        const searchTerm = searchParams.term;
-        
-        let response;
-        if (searchParams.filter === 'codigo') {
-          // Pesquisa por código (exato)
-          response = await axios.get(`/api/produtos/search`, {
-            params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' }
-          });
-        } else if (searchParams.filter === 'descricao') {
-          // Pesquisa por descrição (maior ou igual)
-          response = await axios.get(`/api/produtos/search`, {
-            params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' }
-          });
-        } else if (searchParams.filter === 'fornecedor') {
-          // Pesquisa por fornecedor (exato)
-          response = await axios.get(`/api/produtos/search`, {
-            params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' }
-          });
-        }
-        
-        if (response) {
+      setLoading(true);
+      setPage(1);
+
+      const params = {
+        page: 1,
+        limit: 100, // Carregar mais itens inicialmente para filtros locais
+        sort: 'asc'
+      };
+
+      let data = [];
+
+      try {
+        if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
+          // Se tivermos parâmetros de pesquisa que podem ser enviados para o backend
+          // Usando pesquisa no backend para filtros específicos
+          const searchTerm = searchParams.term;
+
+          let response;
+          if (searchParams.filter === 'codigo') {
+            // Pesquisa por código (exato)
+            response = await axios.get(`/api/produtos/search`, {
+              params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' }
+            });
+          } else if (searchParams.filter === 'descricao') {
+            // Pesquisa por descrição (maior ou igual)
+            response = await axios.get(`/api/produtos/search`, {
+              params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' }
+            });
+          } else if (searchParams.filter === 'fornecedor') {
+            // Pesquisa por fornecedor (exato)
+            response = await axios.get(`/api/produtos/search`, {
+              params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' }
+            });
+          }
+
+          if (response) {
+            if (response.data.items) {
+              data = response.data.items;
+              setHasMore(response.data.pagination.currentPage < response.data.pagination.totalPages);
+            } else if (Array.isArray(response.data)) {
+              data = response.data;
+              setHasMore(data.length >= params.limit);
+            }
+          } else {
+            setHasMore(false);
+          }
+        } else {
+          // Sem filtro específico ou filtro por moto (que faremos localmente)
+          // Buscar todos os produtos
+          const response = await axios.get('/api/produtos', { params });
+
           if (response.data.items) {
             data = response.data.items;
             setHasMore(response.data.pagination.currentPage < response.data.pagination.totalPages);
           } else if (Array.isArray(response.data)) {
             data = response.data;
             setHasMore(data.length >= params.limit);
+          } else {
+            setHasMore(false);
+          }
+        }
+      } catch (error) {
+        console.warn('Erro na API:', error);
+        setHasMore(false);
+        setError('Erro ao buscar dados. Por favor, tente novamente.');
+      }
+
+      // Normalização de dados para garantir formato correto
+      const produtosNormalizados = data.map(item => {
+        const produto = {};
+
+        // Mapear os campos padrão
+        produto.item_id = item.item_id || item.id || item.codigo || item.cod || '';
+        produto.descricao = item.descricao || item.nome || '';
+        produto.fornecedor_id = item.fornecedor_id || item.fornecedor || 0;
+        produto.situacao = item.situacao || item.ativo || 'A';
+
+        // Mapear campos específicos numericamente (lojas sem decimais)
+        for (let i = 1; i <= 15; i++) {
+          const lojaField = `loja${i}`;
+          const value = parseFloat(item[lojaField] || item[`estoque_pdv${i}`] || 0);
+          produto[lojaField] = value;
+        }
+
+        // Campos financeiros
+        produto.custo_final = parseFloat(item.custo_final || item.custo_venda || item.custo || 0);
+
+        for (let i = 1; i <= 4; i++) {
+          const vendaField = `venda${i}`;
+          produto[vendaField] = parseFloat(item[vendaField] || item[`valor_venda${i}`] || 0);
+        }
+
+        return produto;
+      });
+
+      setProdutos(produtosNormalizados);
+
+      // Aplicar filtros locais se necessário
+      if ((searchParams.filter === 'codigo' && searchParams.term) ||
+        (searchParams.filter === 'moto' && searchParams.term)) {
+
+        let filtered = produtosNormalizados;
+
+        if (searchParams.filter === 'codigo') {
+          // Filtragem local por código (exato)
+          filtered = produtosNormalizados.filter(produto =>
+            produto.item_id.toString() === searchParams.term.toString()
+          );
+        } else if (searchParams.filter === 'moto') {
+          // Filtragem local por moto (contém)
+          filtered = produtosNormalizados.filter(produto =>
+            produto.descricao.toLowerCase().includes(searchParams.term.toLowerCase())
+          );
+        }
+
+        setFilteredProdutos(filtered);
+      } else {
+        setFilteredProdutos(produtosNormalizados);
+      }
+
+      setError(null);
+    } catch (err) {
+      console.error('Erro ao carregar produtos:', err);
+      setError('Erro ao carregar produtos.');
+      setProdutos([]);
+      setFilteredProdutos([]);
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchParams]);
+
+  // Função para buscar mais produtos (scroll infinito)
+  // Função para buscar mais produtos (scroll infinito)
+  const fetchMoreProdutos = useCallback(async () => {
+    if (!hasMore || loadingMore) return;
+
+    try {
+      setLoadingMore(true);
+      const nextPage = page + 1;
+
+      const params = {
+        page: nextPage,
+        limit: 30,
+        sort: 'asc'
+      };
+
+      let data = [];
+
+      try {
+        // Lógica similar à busca inicial, mas para próximas páginas
+        let response;
+
+        if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
+          const searchTerm = searchParams.term;
+
+          if (searchParams.filter === 'codigo') {
+            response = await axios.get(`/api/produtos/search`, {
+              params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' }
+            });
+          } else if (searchParams.filter === 'descricao') {
+            response = await axios.get(`/api/produtos/search`, {
+              params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' }
+            });
+          } else if (searchParams.filter === 'fornecedor') {
+            response = await axios.get(`/api/produtos/search`, {
+              params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' }
+            });
+          }
+        } else {
+          response = await axios.get('/api/produtos', { params });
+        }
+
+        if (response && response.data) {
+          if (response.data.items) {
+            data = response.data.items;
+            setHasMore(response.data.pagination.currentPage < response.data.pagination.totalPages);
+          } else if (Array.isArray(response.data)) {
+            data = response.data;
+            setHasMore(data.length >= params.limit);
+          } else {
+            setHasMore(false);
           }
         } else {
           setHasMore(false);
         }
-      } else {
-        // Sem filtro específico ou filtro por moto (que faremos localmente)
-        // Buscar todos os produtos
-        const response = await axios.get('/api/produtos', { params });
-        
-        if (response.data.items) {
-          data = response.data.items;
-          setHasMore(response.data.pagination.currentPage < response.data.pagination.totalPages);
-        } else if (Array.isArray(response.data)) {
-          data = response.data;
-          setHasMore(data.length >= params.limit);
-        } else {
-          setHasMore(false);
-        }
-      }
-    } catch (error) {
-      console.warn('Erro na API:', error);
-      setHasMore(false);
-      setError('Erro ao buscar dados. Por favor, tente novamente.');
-    }
-    
-    // Normalização de dados para garantir formato correto
-    const produtosNormalizados = data.map(item => {
-      const produto = {};
-      
-      // Mapear os campos padrão
-      produto.item_id = item.item_id || item.id || item.codigo || item.cod || '';
-      produto.descricao = item.descricao || item.nome || '';
-      produto.fornecedor_id = item.fornecedor_id || item.fornecedor || 0;
-      produto.situacao = item.situacao || item.ativo || 'A';
-      
-      // Mapear campos específicos numericamente (lojas sem decimais)
-      for (let i = 1; i <= 15; i++) {
-        const lojaField = `loja${i}`;
-        const value = parseFloat(item[lojaField] || item[`estoque_pdv${i}`] || 0);
-        produto[lojaField] = value;
-      }
-      
-      // Campos financeiros
-      produto.custo_final = parseFloat(item.custo_final || item.custo_venda || item.custo || 0);
-      
-      for (let i = 1; i <= 4; i++) {
-        const vendaField = `venda${i}`;
-        produto[vendaField] = parseFloat(item[vendaField] || item[`valor_venda${i}`] || 0);
-      }
-      
-      return produto;
-    });
-    
-    setProdutos(produtosNormalizados);
-    
-    // Aplicar filtros locais se necessário
-    if (searchParams.filter === 'moto' && searchParams.term) {
-      // Filtrar produtos que contenham o termo na descrição
-      const filtered = produtosNormalizados.filter(produto => 
-        produto.descricao.toLowerCase().includes(searchParams.term.toLowerCase())
-      );
-      setFilteredProdutos(filtered);
-    } else {
-      setFilteredProdutos(produtosNormalizados);
-    }
-    
-    setError(null);
-  } catch (err) {
-    console.error('Erro ao carregar produtos:', err);
-    setError('Erro ao carregar produtos.');
-    setProdutos([]);
-    setFilteredProdutos([]);
-    setHasMore(false);
-  } finally {
-    setLoading(false);
-  }
-}, [searchParams]);
-
-  // Função para buscar mais produtos (scroll infinito)
-// Função para buscar mais produtos (scroll infinito)
-const fetchMoreProdutos = useCallback(async () => {
-  if (!hasMore || loadingMore) return;
-  
-  try {
-    setLoadingMore(true);
-    const nextPage = page + 1;
-    
-    const params = {
-      page: nextPage,
-      limit: 30,
-      sort: 'asc'
-    };
-    
-    let data = [];
-    
-    try {
-      // Lógica similar à busca inicial, mas para próximas páginas
-      let response;
-      
-      if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
-        const searchTerm = searchParams.term;
-        
-        if (searchParams.filter === 'codigo') {
-          response = await axios.get(`/api/produtos/search`, {
-            params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' }
-          });
-        } else if (searchParams.filter === 'descricao') {
-          response = await axios.get(`/api/produtos/search`, {
-            params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' }
-          });
-        } else if (searchParams.filter === 'fornecedor') {
-          response = await axios.get(`/api/produtos/search`, {
-            params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' }
-          });
-        }
-      } else {
-        response = await axios.get('/api/produtos', { params });
-      }
-      
-      if (response && response.data) {
-        if (response.data.items) {
-          data = response.data.items;
-          setHasMore(response.data.pagination.currentPage < response.data.pagination.totalPages);
-        } else if (Array.isArray(response.data)) {
-          data = response.data;
-          setHasMore(data.length >= params.limit);
-        } else {
-          setHasMore(false);
-        }
-      } else {
+      } catch (error) {
+        console.warn('Erro na API ao carregar mais itens:', error);
         setHasMore(false);
       }
-    } catch (error) {
-      console.warn('Erro na API ao carregar mais itens:', error);
-      setHasMore(false);
-    }
-    
-    // Normalização dos dados
-    const produtosNormalizados = data.map(item => {
-      const produto = {};
-      
-      // Mapear os campos padrão
-      produto.item_id = item.item_id || item.id || item.codigo || item.cod || '';
-      produto.descricao = item.descricao || item.nome || '';
-      produto.fornecedor_id = item.fornecedor_id || item.fornecedor || 0;
-      produto.situacao = item.situacao || item.ativo || 'A';
-      
-      // Mapear campos específicos numericamente (lojas sem decimais)
-      for (let i = 1; i <= 15; i++) {
-        const lojaField = `loja${i}`;
-        const value = parseFloat(item[lojaField] || item[`estoque_pdv${i}`] || 0);
-        produto[lojaField] = value;
+
+      // Normalização dos dados
+      const produtosNormalizados = data.map(item => {
+        const produto = {};
+
+        // Mapear os campos padrão
+        produto.item_id = item.item_id || item.id || item.codigo || item.cod || '';
+        produto.descricao = item.descricao || item.nome || '';
+        produto.fornecedor_id = item.fornecedor_id || item.fornecedor || 0;
+        produto.situacao = item.situacao || item.ativo || 'A';
+
+        // Mapear campos específicos numericamente (lojas sem decimais)
+        for (let i = 1; i <= 15; i++) {
+          const lojaField = `loja${i}`;
+          const value = parseFloat(item[lojaField] || item[`estoque_pdv${i}`] || 0);
+          produto[lojaField] = value;
+        }
+
+        // Campos financeiros
+        produto.custo_final = parseFloat(item.custo_final || item.custo_venda || item.custo || 0);
+
+        for (let i = 1; i <= 4; i++) {
+          const vendaField = `venda${i}`;
+          produto[vendaField] = parseFloat(item[vendaField] || item[`valor_venda${i}`] || 0);
+        }
+
+        return produto;
+      });
+
+      const newProdutos = [...produtos, ...produtosNormalizados];
+      setProdutos(newProdutos);
+
+      // Aplicar filtros locais se necessário
+      if ((searchParams.filter === 'codigo' && searchParams.term) ||
+        (searchParams.filter === 'moto' && searchParams.term)) {
+
+        let filtered = newProdutos;
+
+        if (searchParams.filter === 'codigo') {
+          // Filtragem local por código (exato)
+          filtered = newProdutos.filter(produto =>
+            produto.item_id.toString() === searchParams.term.toString()
+          );
+        } else if (searchParams.filter === 'moto') {
+          // Filtragem local por moto (contém)
+          filtered = newProdutos.filter(produto =>
+            produto.descricao.toLowerCase().includes(searchParams.term.toLowerCase())
+          );
+        }
+
+        setFilteredProdutos(filtered);
+      } else {
+        setFilteredProdutos(newProdutos);
       }
-      
-      // Campos financeiros
-      produto.custo_final = parseFloat(item.custo_final || item.custo_venda || item.custo || 0);
-      
-      for (let i = 1; i <= 4; i++) {
-        const vendaField = `venda${i}`;
-        produto[vendaField] = parseFloat(item[vendaField] || item[`valor_venda${i}`] || 0);
-      }
-      
-      return produto;
-    });
-    
-    const newProdutos = [...produtos, ...produtosNormalizados];
-    setProdutos(newProdutos);
-    
-    // Aplicar filtros locais se necessário
-    if (searchParams.filter === 'moto' && searchParams.term) {
-      // Filtrar produtos que contenham o termo na descrição
-      const filtered = newProdutos.filter(produto => 
-        produto.descricao.toLowerCase().includes(searchParams.term.toLowerCase())
-      );
-      setFilteredProdutos(filtered);
-    } else {
-      setFilteredProdutos(newProdutos);
+
+      setPage(nextPage);
+    } catch (err) {
+      console.error('Erro ao carregar mais produtos:', err);
+      setError('Erro ao carregar mais produtos.');
+    } finally {
+      setLoadingMore(false);
     }
-    
-    setPage(nextPage);
-  } catch (err) {
-    console.error('Erro ao carregar mais produtos:', err);
-    setError('Erro ao carregar mais produtos.');
-  } finally {
-    setLoadingMore(false);
-  }
-}, [page, hasMore, loadingMore, searchParams, produtos]);
+  }, [page, hasMore, loadingMore, searchParams, produtos]);
 
   // Efeito para buscar dados iniciais
   useEffect(() => {
@@ -329,104 +353,104 @@ const fetchMoreProdutos = useCallback(async () => {
     focusCurrentCell();
   }, [currentCell, focusCurrentCell]);
 
-// Função otimizada para navegação por teclado
-const handleKeyNavigation = (direction, rowIndex, colIndex) => {
-  // Cache para otimização - evita recálculos desnecessários
-  const maxRow = filteredProdutos.length - 1;
-  const maxCol = columns.length - 1;
-  
-  // Cálculo direto de novas coordenadas
-  let newRowIndex = rowIndex;
-  let newColIndex = colIndex;
+  // Função otimizada para navegação por teclado
+  const handleKeyNavigation = (direction, rowIndex, colIndex) => {
+    // Cache para otimização - evita recálculos desnecessários
+    const maxRow = filteredProdutos.length - 1;
+    const maxCol = columns.length - 1;
 
-  switch (direction) {
-    case 'up':
-      // Movimento simples para cima, sem lógica complexa
-      newRowIndex = Math.max(0, rowIndex - 1);
-      break;
-      
-    case 'down':
-      // Movimento simples para baixo, com verificação de carregamento
-      newRowIndex = Math.min(maxRow, rowIndex + 1);
-      
-      // Se estiver próximo ao final, aciona carregamento assíncrono
-      if (newRowIndex > maxRow - 3 && hasMore && !loadingMore) {
-        // Usar setTimeout para não bloquear a navegação
-        setTimeout(() => {
-          if (hasMore && !loadingMore) {
-            fetchMoreProdutos();
-          }
-        }, 100);
-      }
-      break;
-      
-    case 'left': {
-      // Movimento para célula editável à esquerda
-      let foundEditableCell = false;
-      
-      // Começando da coluna atual, procura à esquerda
-      for (let col = colIndex - 1; col >= 0; col--) {
-        if (columns[col].editable) {
-          newColIndex = col;
-          foundEditableCell = true;
-          break;
+    // Cálculo direto de novas coordenadas
+    let newRowIndex = rowIndex;
+    let newColIndex = colIndex;
+
+    switch (direction) {
+      case 'up':
+        // Movimento simples para cima, sem lógica complexa
+        newRowIndex = Math.max(0, rowIndex - 1);
+        break;
+
+      case 'down':
+        // Movimento simples para baixo, com verificação de carregamento
+        newRowIndex = Math.min(maxRow, rowIndex + 1);
+
+        // Se estiver próximo ao final, aciona carregamento assíncrono
+        if (newRowIndex > maxRow - 3 && hasMore && !loadingMore) {
+          // Usar setTimeout para não bloquear a navegação
+          setTimeout(() => {
+            if (hasMore && !loadingMore) {
+              fetchMoreProdutos();
+            }
+          }, 100);
         }
-      }
-      
-      // Se não encontrou na linha atual, vai para a linha anterior
-      if (!foundEditableCell && rowIndex > 0) {
-        newRowIndex = rowIndex - 1;
-        
-        // Procura da direita para a esquerda na linha anterior
-        for (let col = maxCol; col >= 0; col--) {
+        break;
+
+      case 'left': {
+        // Movimento para célula editável à esquerda
+        let foundEditableCell = false;
+
+        // Começando da coluna atual, procura à esquerda
+        for (let col = colIndex - 1; col >= 0; col--) {
           if (columns[col].editable) {
             newColIndex = col;
+            foundEditableCell = true;
             break;
           }
         }
-      }
-      break;
-    }
-      
-    case 'right': {
-      // Movimento para célula editável à direita
-      let foundEditableCell = false;
-      
-      // Começando da coluna atual, procura à direita
-      for (let col = colIndex + 1; col <= maxCol; col++) {
-        if (columns[col].editable) {
-          newColIndex = col;
-          foundEditableCell = true;
-          break;
+
+        // Se não encontrou na linha atual, vai para a linha anterior
+        if (!foundEditableCell && rowIndex > 0) {
+          newRowIndex = rowIndex - 1;
+
+          // Procura da direita para a esquerda na linha anterior
+          for (let col = maxCol; col >= 0; col--) {
+            if (columns[col].editable) {
+              newColIndex = col;
+              break;
+            }
+          }
         }
+        break;
       }
-      
-      // Se não encontrou na linha atual, vai para a próxima linha
-      if (!foundEditableCell && rowIndex < maxRow) {
-        newRowIndex = rowIndex + 1;
-        
-        // Procura da esquerda para a direita na próxima linha
-        for (let col = 0; col <= maxCol; col++) {
+
+      case 'right': {
+        // Movimento para célula editável à direita
+        let foundEditableCell = false;
+
+        // Começando da coluna atual, procura à direita
+        for (let col = colIndex + 1; col <= maxCol; col++) {
           if (columns[col].editable) {
             newColIndex = col;
+            foundEditableCell = true;
             break;
           }
         }
-      }
-      break;
-    }
-  }
 
-  // Atualiza a célula atual com coordenadas calculadas
-  setCurrentCell({ rowIndex: newRowIndex, colIndex: newColIndex });
-  
-  // Foco imediato para uma experiência mais responsiva
-  setTimeout(() => {
-    const cellId = `cell-${newRowIndex}-${newColIndex}`;
-    const cell = document.getElementById(cellId);
-    if (cell) cell.focus();
-  }, 0);
-};
+        // Se não encontrou na linha atual, vai para a próxima linha
+        if (!foundEditableCell && rowIndex < maxRow) {
+          newRowIndex = rowIndex + 1;
+
+          // Procura da esquerda para a direita na próxima linha
+          for (let col = 0; col <= maxCol; col++) {
+            if (columns[col].editable) {
+              newColIndex = col;
+              break;
+            }
+          }
+        }
+        break;
+      }
+    }
+
+    // Atualiza a célula atual com coordenadas calculadas
+    setCurrentCell({ rowIndex: newRowIndex, colIndex: newColIndex });
+
+    // Foco imediato para uma experiência mais responsiva
+    setTimeout(() => {
+      const cellId = `cell-${newRowIndex}-${newColIndex}`;
+      const cell = document.getElementById(cellId);
+      if (cell) cell.focus();
+    }, 0);
+  };
 
   // Função para atualizar um produto
   const handleCellChange = async (id, field, value) => {
