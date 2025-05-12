@@ -33,6 +33,7 @@ function App() {
           <ProdutoList searchParams={searchParams} />
         )}
       </main>
+      {/* Note que a barra de status agora é renderizada dentro do componente ProdutoList */}
     </div>
   );
 }

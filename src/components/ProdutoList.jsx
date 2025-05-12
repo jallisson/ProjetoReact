@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import EditableCell from './EditableCell';
 import axios from 'axios';
+import './StatusBar.css'; // Importamos o CSS que vamos criar
 
 // Atualizado para aceitar searchParams em vez de apenas searchTerm
 const ProdutoList = ({ searchParams }) => {
@@ -9,6 +10,8 @@ const ProdutoList = ({ searchParams }) => {
   const [error, setError] = useState(null);
   const [currentCell, setCurrentCell] = useState({ rowIndex: 0, colIndex: 1 });
   const [filteredProdutos, setFilteredProdutos] = useState([]);
+  // Estado para acompanhar o produto selecionado atualmente
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   // Estados para paginação infinita
   const [page, setPage] = useState(1);
@@ -168,6 +171,11 @@ const ProdutoList = ({ searchParams }) => {
         setFilteredProdutos(produtosNormalizados);
       }
 
+      // Define o produto selecionado para o primeiro item se existir
+      if (produtosNormalizados.length > 0) {
+        setSelectedProduct(produtosNormalizados[0]);
+      }
+
       setError(null);
     } catch (err) {
       console.error('Erro ao carregar produtos:', err);
@@ -180,7 +188,6 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [searchParams]);
 
-  // Função para buscar mais produtos (scroll infinito)
   // Função para buscar mais produtos (scroll infinito)
   const fetchMoreProdutos = useCallback(async () => {
     if (!hasMore || loadingMore) return;
@@ -353,6 +360,13 @@ const ProdutoList = ({ searchParams }) => {
     focusCurrentCell();
   }, [currentCell, focusCurrentCell]);
 
+  // Função para atualizar o produto selecionado quando a célula atual muda
+  useEffect(() => {
+    if (filteredProdutos.length > 0 && currentCell.rowIndex >= 0 && currentCell.rowIndex < filteredProdutos.length) {
+      setSelectedProduct(filteredProdutos[currentCell.rowIndex]);
+    }
+  }, [currentCell, filteredProdutos]);
+
   // Função otimizada para navegação por teclado
   const handleKeyNavigation = (direction, rowIndex, colIndex) => {
     // Cache para otimização - evita recálculos desnecessários
@@ -444,12 +458,22 @@ const ProdutoList = ({ searchParams }) => {
     // Atualiza a célula atual com coordenadas calculadas
     setCurrentCell({ rowIndex: newRowIndex, colIndex: newColIndex });
 
+    // Atualiza o produto selecionado mostrado na barra de status
+    if (newRowIndex >= 0 && newRowIndex < filteredProdutos.length) {
+      setSelectedProduct(filteredProdutos[newRowIndex]);
+    }
+
     // Foco imediato para uma experiência mais responsiva
     setTimeout(() => {
       const cellId = `cell-${newRowIndex}-${newColIndex}`;
       const cell = document.getElementById(cellId);
       if (cell) cell.focus();
     }, 0);
+  };
+
+  // Função para lidar com o hover do mouse nas linhas e atualizar o produto selecionado
+  const handleRowMouseEnter = (produto) => {
+    setSelectedProduct(produto);
   };
 
   // Função para atualizar um produto
@@ -479,6 +503,11 @@ const ProdutoList = ({ searchParams }) => {
         const filteredAtualizados = [...filteredProdutos];
         filteredAtualizados[filteredIndex] = produtoAtualizado;
         setFilteredProdutos(filteredAtualizados);
+      }
+
+      // Se o produto atualizado é o que está selecionado, atualize-o também
+      if (selectedProduct && selectedProduct.item_id.toString() === id.toString()) {
+        setSelectedProduct(produtoAtualizado);
       }
 
       // Tenta enviar atualização para o backend
@@ -553,7 +582,8 @@ const ProdutoList = ({ searchParams }) => {
             {filteredProdutos.map((produto, rowIndex) => (
               <tr
                 key={`row-${produto.item_id}-${rowIndex}`}
-                className={produto.item_id === '1953' ? 'highlighted' : ''}
+                className={currentCell.rowIndex === rowIndex ? 'highlighted' : ''}
+                onMouseEnter={() => handleRowMouseEnter(produto)}
               >
                 {columns.map((column, colIndex) => {
                   // Obter valor do produto para esta coluna
@@ -606,6 +636,18 @@ const ProdutoList = ({ searchParams }) => {
           <div className="end-of-list">
             Não há mais produtos para carregar.
           </div>
+        )}
+      </div>
+
+      {/* Barra de status no rodapé */}
+      <div className="status-bar">
+        {selectedProduct ? (
+          <>
+            <span className="status-code">{selectedProduct.item_id}</span>
+            <span className="status-description">{selectedProduct.descricao}</span>
+          </>
+        ) : (
+          <span className="status-empty">Nenhum produto selecionado</span>
         )}
       </div>
 
