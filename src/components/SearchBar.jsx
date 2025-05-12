@@ -1,24 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const SearchBar = ({ onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterBy, setFilterBy] = useState('');
+  const [filterBy, setFilterBy] = useState('descricao');
+  const [searchMode, setSearchMode] = useState('contains'); // Valor padrão 'contém'
+
+  // Opções de filtro com seus modos de pesquisa associados
+  const filterOptions = [
+    { value: 'codigo', label: 'Código', defaultMode: 'equal' },
+    { value: 'descricao', label: 'Descrição', defaultMode: 'greaterOrEqual' },
+    { value: 'fornecedor', label: 'Fornecedor', defaultMode: 'equal' },
+    { value: 'moto', label: 'Moto', defaultMode: 'contains' }
+  ];
+
+  // Opções de modos de pesquisa
+  const searchModes = [
+    { value: 'equal', label: 'Igual a' },
+    { value: 'contains', label: 'Contém' },
+    { value: 'greaterOrEqual', label: 'Maior ou igual' },
+    { value: 'startsWith', label: 'Começa com' }
+  ];
+
+  // Atualiza o modo de pesquisa quando o filtro é alterado
+  useEffect(() => {
+    // Encontrar o filtro selecionado
+    const selectedFilter = filterOptions.find(option => option.value === filterBy);
+    if (selectedFilter) {
+      // Definir o modo de pesquisa padrão para este filtro
+      setSearchMode(selectedFilter.defaultMode);
+    }
+  }, [filterBy]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    onSearch(searchTerm);
+    
+    if (!searchTerm.trim()) {
+      // Se o termo de pesquisa estiver vazio, limpa a pesquisa
+      onSearch({ term: '', filter: '', mode: '' });
+      return;
+    }
+    
+    // Enviar pesquisa com filtro e modo
+    onSearch({
+      term: searchTerm,
+      filter: filterBy,
+      mode: searchMode
+    });
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      onSearch(searchTerm);
+      handleSearch(e);
     }
   };
 
   const handleClear = () => {
     setSearchTerm('');
-    setFilterBy('');
-    onSearch('');
+    // Reset para valores padrão
+    setFilterBy('descricao');
+    setSearchMode('greaterOrEqual');
+    onSearch({ term: '', filter: '', mode: '' });
   };
 
   return (
@@ -32,9 +73,11 @@ const SearchBar = ({ onSearch }) => {
             value={filterBy}
             onChange={(e) => setFilterBy(e.target.value)}
           >
-            <option value="">Todos</option>
-            <option value="id">ID</option>
-            <option value="descricao">Descrição</option>
+            {filterOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
         
@@ -47,7 +90,7 @@ const SearchBar = ({ onSearch }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Digite para pesquisar..."
+            placeholder={`Digite para pesquisar... (${searchModes.find(m => m.value === searchMode)?.label || 'Contém'})`}
           />
         </div>
       </div>
@@ -59,16 +102,6 @@ const SearchBar = ({ onSearch }) => {
         <button className="button green-button" onClick={handleClear}>
           Limpar
         </button>
-        {/*
-        <button className="button green-button">Gerar Excesso 1</button>
-        <button className="button green-button">Gerar Excesso 2</button>
-        <button className="button green-button">Gerar Excesso 3</button>
-        <button className="button green-button">Gerar Excesso 4</button>
-        <button className="button yellow-button">Apaga 1</button>
-        <button className="button yellow-button">Apaga 2</button>
-        <button className="button yellow-button">Apaga 3</button>
-        <button className="button yellow-button">Apaga 4</button>
-        */}
       </div>
     </div>
   );

@@ -5,11 +5,21 @@ import SearchBar from './components/SearchBar'
 import ProdutoList from './components/ProdutoList'
 
 function App() {
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchParams, setSearchParams] = useState({
+    term: '',
+    filter: '',
+    mode: ''
+  });
+  const [loading, setLoading] = useState(false);
 
-  const handleSearch = (term) => {
-    setSearchTerm(term)
-  }
+  const handleSearch = (params) => {
+    setLoading(true);
+    setSearchParams(params);
+    // Simular um pequeno atraso para mostrar o loading
+    setTimeout(() => {
+      setLoading(false);
+    }, 500);
+  };
 
   return (
     <div className="app-container">
@@ -17,10 +27,14 @@ function App() {
       <main className="content">
         <h1>Gerenciamento de Produtos</h1>
         <SearchBar onSearch={handleSearch} />
-        <ProdutoList searchTerm={searchTerm} />
+        {loading ? (
+          <div className="loading">Buscando produtos...</div>
+        ) : (
+          <ProdutoList searchParams={searchParams} />
+        )}
       </main>
     </div>
-  )
+  );
 }
 
 export default App

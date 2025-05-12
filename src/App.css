@@ -281,3 +281,409 @@ td:nth-child(n+3) {
     font-size: 0.8rem;
   }
 }
+/* =============================================== */
+/* Estilos otimizados para ProdutoList - INÍCIO    */
+/* =============================================== */
+
+/* Container da tabela - ajustado para visualização completa sem scroll horizontal */
+.fixed-table-container {
+  width: 100%;
+  overflow-y: auto; /* Permite rolagem vertical */
+  overflow-x: hidden; /* Esconde a rolagem horizontal */
+  max-height: 70vh; /* Altura máxima para ver várias linhas */
+  margin-top: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: white;
+  border-radius: 5px;
+  position: relative;
+}
+
+/* Tabela sem rolagem horizontal */
+.produtos-table {
+  width: 100%; 
+  border-collapse: collapse;
+  table-layout: fixed; /* Fixa o layout da tabela */
+}
+
+/* Cabeçalho fixo */
+.produtos-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: #f8f9fa;
+}
+
+/* Estilo das células do cabeçalho */
+.produtos-table th {
+  background-color: #f8f9fa;
+  padding: 0.5rem 0.25rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Destaque para linhas ao passar o mouse */
+.produtos-table tr:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+/* Alternância de cores para as linhas */
+.produtos-table tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+/* Linha destacada - como na imagem (verde) */
+.produtos-table tr.highlighted {
+  background-color: rgba(76, 175, 80, 0.2); /* Verde claro */
+}
+
+/* Estilos para células */
+.produtos-table td {
+  padding: 0 !important;
+  height: 36px;
+  border-bottom: 1px solid #eee;
+  font-size: 0.85rem;
+}
+
+/* Definição de larguras de colunas específicas para corresponder às 24 colunas */
+.produtos-table th:first-child,
+.produtos-table td:first-child {
+  width: 40px; /* Código */
+  min-width: 40px;
+  max-width: 40px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Coluna de descrição - mais larga */
+.produtos-table .description-column {
+  width: 200px; /* Nome */
+  min-width: 200px;
+  max-width: 200px;
+  text-align: left;
+  padding-left: 5px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Coluna de fornecedor */
+.produtos-table th:nth-child(3),
+.produtos-table td:nth-child(3) {
+  width: 40px; /* Fornecedor */
+  min-width: 40px;
+  max-width: 40px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Coluna de situação */
+.produtos-table th:nth-child(4),
+.produtos-table td:nth-child(4) {
+  width: 30px; /* Situação */
+  min-width: 30px;
+  max-width: 30px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Colunas de lojas (5 a 19) - ajustadas para não mostrar reticências */
+.produtos-table th:nth-child(n+5):nth-child(-n+19),
+.produtos-table td:nth-child(n+5):nth-child(-n+19) {
+  width: 38px; /* Aumentado para acomodar os números */
+  min-width: 38px;
+  max-width: 38px;
+  text-align: right; /* Alinhar à direita */
+  padding-right: 4px !important;
+  white-space: normal; /* Permitir quebra de linha se necessário */
+  overflow: visible; /* Não ocultar conteúdo */
+  text-overflow: clip; /* Não mostrar reticências */
+}
+
+/* Coluna de custo final */
+.produtos-table th:nth-child(20),
+.produtos-table td:nth-child(20) {
+  width: 60px; /* Custo Final */
+  min-width: 60px;
+  max-width: 60px;
+  text-align: right;
+  padding-right: 4px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Colunas de valores de venda (21-24) */
+.produtos-table th:nth-child(n+21):nth-child(-n+24),
+.produtos-table td:nth-child(n+21):nth-child(-n+24) {
+  width: 45px; /* Colunas Venda1-Venda4 */
+  min-width: 45px;
+  max-width: 45px;
+  text-align: right;
+  padding-right: 4px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Células editáveis - garantir que preencham o espaço */
+.editable-cell {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+  padding: 0.35rem 0.25rem;
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  display: block; /* Garante que ocupe toda a célula */
+  text-align: inherit; /* Mantém o alinhamento da célula pai */
+}
+
+/* Células editáveis para lojas - sem reticências */
+.produtos-table td:nth-child(n+5):nth-child(-n+19) .editable-cell {
+  white-space: normal; /* Permitir quebra de linha */
+  overflow: visible; /* Não ocultar conteúdo */
+  text-overflow: clip; /* Não mostrar reticências */
+  text-align: right; /* Alinhar números à direita */
+}
+
+/* Células editáveis para valores numéricos - alinhar à direita */
+.produtos-table td .editable-cell[data-type="number"] {
+  text-align: right;
+  padding-right: 0.35rem;
+}
+
+/* Estilo ao passar o mouse sobre célula editável */
+.editable-cell:hover {
+  background-color: rgba(52, 152, 219, 0.05);
+  border: 1px dashed #3498db;
+}
+
+/* Estilo ao focar na célula editável */
+.editable-cell:focus {
+  outline: 2px solid #3498db;
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+/* Campo de input para edição */
+.cell-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+  padding: 0.35rem 0.25rem;
+  font-size: 0.875rem;
+  border: 2px solid #3498db;
+  border-radius: 3px;
+  background-color: white;
+  outline: none;
+  text-align: inherit; /* Mantém o alinhamento da célula pai */
+}
+
+/* Elemento de carregamento no final da tabela */
+.loading-more {
+  text-align: center;
+  padding: 0.5rem;
+  height: 30px;
+  color: #666;
+  position: relative;
+  z-index: 5;
+}
+
+/* Melhorias de responsividade */
+@media screen and (max-width: 1200px) {
+  /* Diminuir um pouco a largura da coluna de descrição */
+  .produtos-table .description-column {
+    width: 180px;
+    min-width: 180px;
+    max-width: 180px;
+  }
+  
+  /* Reduzir um pouco as colunas de valores */
+  .produtos-table th:nth-child(20),
+  .produtos-table td:nth-child(20),
+  .produtos-table th:nth-child(n+21):nth-child(-n+24),
+  .produtos-table td:nth-child(n+21):nth-child(-n+24) {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+  }
+}
+
+@media screen and (max-width: 1000px) {
+  /* Diminuir ainda mais a largura da coluna de descrição */
+  .produtos-table .description-column {
+    width: 150px;
+    min-width: 150px;
+    max-width: 150px;
+  }
+  
+  /* Reduzir ainda mais as colunas de lojas */
+  .produtos-table th:nth-child(n+5):nth-child(-n+19),
+  .produtos-table td:nth-child(n+5):nth-child(-n+19) {
+    width: 35px;
+    min-width: 35px;
+    max-width: 35px;
+  }
+}
+
+/* Indicator de carregamento animado */
+.loading-more::after {
+  content: "";
+  display: inline-block;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(to right, #3498db, transparent);
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: loading-pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes loading-pulse {
+  0% { width: 0; opacity: 0.1; }
+  50% { width: 40px; opacity: 1; }
+  100% { width: 0; opacity: 0.1; }
+}
+
+/* =============================================== */
+/* Estilos otimizados para ProdutoList - FIM      */
+/* =============================================== */
+
+
+/* Adicione estes estilos ao seu arquivo App.css */
+
+/* Estilo para os controles de pesquisa */
+.search-container {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 5px;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  gap: 0.5rem;
+}
+
+.filter-column {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-column label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: bold;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.buttons-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.button {
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.green-button {
+  background-color: #4caf50;
+  color: white;
+}
+
+.green-button:hover {
+  background-color: #388e3c;
+}
+
+/* Indicador de fim da lista */
+.end-of-list {
+  text-align: center;
+  padding: 1rem;
+  color: #757575;
+  font-size: 0.9rem;
+  border-top: 1px solid #eeeeee;
+  background-color: #f9f9f9;
+}
+
+/* Mensagem de resultados da pesquisa */
+.search-results-info {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  color: #555;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+  border-left: 3px solid #4caf50;
+}
+
+/* Feedback de tipo de pesquisa */
+.search-type-indicator {
+  display: inline-block;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  background-color: #e8f5e9;
+  color: #388e3c;
+}
+
+/* Tipo de pesquisa 'igual' */
+.search-type-equal {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+/* Tipo de pesquisa 'contém' */
+.search-type-contains {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+/* Tipo de pesquisa 'maior ou igual' */
+.search-type-greater {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+/* Responsividade */
+@media screen and (max-width: 768px) {
+  .filter-row {
+    flex-direction: column;
+  }
+  
+  .filter-column {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+}
