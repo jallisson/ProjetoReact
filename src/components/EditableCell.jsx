@@ -121,6 +121,35 @@ const EditableCell = ({
     };
   }, [isEditing, inputValue, originalValue, onSave, value]);
 
+  // Adicionamos um listener para o input também
+  useEffect(() => {
+    const currentInputRef = inputRef.current;
+    
+    const handleInputKeyDown = (e) => {
+      const { rowIndex, colIndex, onKeyNavigation } = propsRef.current;
+      
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setIsEditing(false);
+        if (inputValue !== originalValue) {
+          onSave(inputValue);
+        }
+        // Move para a próxima linha, mesma coluna
+        onKeyNavigation('down', rowIndex, colIndex);
+      }
+    };
+    
+    if (currentInputRef) {
+      currentInputRef.addEventListener('keydown', handleInputKeyDown);
+    }
+    
+    return () => {
+      if (currentInputRef) {
+        currentInputRef.removeEventListener('keydown', handleInputKeyDown);
+      }
+    };
+  }, [isEditing, inputValue, originalValue, onSave]);
+
   const startEditing = useCallback((_, initialValue = null) => {
     setIsEditing(true);
     

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import EditableCell from './EditableCell';
 import axios from 'axios';
-import './StatusBar.css'; // Importamos o CSS que vamos criar
+import './StatusBar.css';
 
-// Atualizado para aceitar searchParams em vez de apenas searchTerm
 const ProdutoList = ({ searchParams }) => {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -126,7 +125,7 @@ const ProdutoList = ({ searchParams }) => {
         produto.item_id = item.item_id || item.id || item.codigo || item.cod || '';
         produto.descricao = item.descricao || item.nome || '';
         produto.fornecedor_id = item.fornecedor_id || item.fornecedor || 0;
-        produto.situacao = item.situacao || item.ativo || 'A';
+        produto.situacao = item.ativo || 'A'; // Mapeamento correto de ativo para situacao
 
         // Mapear campos específicos numericamente (lojas sem decimais)
         for (let i = 1; i <= 15; i++) {
@@ -254,7 +253,7 @@ const ProdutoList = ({ searchParams }) => {
         produto.item_id = item.item_id || item.id || item.codigo || item.cod || '';
         produto.descricao = item.descricao || item.nome || '';
         produto.fornecedor_id = item.fornecedor_id || item.fornecedor || 0;
-        produto.situacao = item.situacao || item.ativo || 'A';
+        produto.situacao = item.ativo || 'A'; // Mapeamento correto de ativo para situacao
 
         // Mapear campos específicos numericamente (lojas sem decimais)
         for (let i = 1; i <= 15; i++) {
@@ -510,11 +509,62 @@ const ProdutoList = ({ searchParams }) => {
         setSelectedProduct(produtoAtualizado);
       }
 
+      // Prepara dados para enviar ao backend com mapeamento correto dos campos
+      const dadosParaEnviar = {};
+
+      // Mapear situacao para ativo
+      if (field === 'situacao') {
+        dadosParaEnviar.ativo = value === '' ? 'A' : value;
+      } 
+      // Mapear campos de loja para estoque_pdvX
+      else if (field.startsWith('loja')) {
+        const lojaNumero = field.replace('loja', '');
+        dadosParaEnviar[`estoque_pdv${lojaNumero}`] = value === '' ? 0 : parseFloat(value);
+      }
+      // Mapear preços de venda
+      else if (field.startsWith('venda')) {
+        const vendaNumero = field.replace('venda', '');
+        dadosParaEnviar[`valor_venda${vendaNumero}`] = value === '' ? 0 : parseFloat(value);
+      }
+      // Mapear custo final
+      else if (field === 'custo_final') {
+        dadosParaEnviar.custo_venda = value === '' ? 0 : parseFloat(value);
+      }
+      // Outros campos
+      else {
+        dadosParaEnviar[field] = value;
+      }
+
+      // Garantir que campos numéricos não sejam strings vazias
+      if (typeof dadosParaEnviar[field] === 'string' && dadosParaEnviar[field] === '' &&
+          columns.find(col => col.id === field)?.type === 'number') {
+        dadosParaEnviar[field] = 0;
+      }
+
       // Tenta enviar atualização para o backend
       try {
-        await axios.put(`/api/produtos/${id}`, produtoAtualizado);
+        await axios.put(`/api/produtos/${id}`, dadosParaEnviar);
+        console.log(`Produto ${id} atualizado com sucesso:`, dadosParaEnviar);
       } catch (error) {
-        console.warn('Erro ao atualizar na API, mas a UI foi atualizada:', error);
+        console.error('Erro ao atualizar na API:', error);
+        setError(`Erro ao atualizar o produto: ${error.message}`);
+        
+        // Reverter mudanças locais em caso de erro
+        if (produtoIndex !== -1) {
+          const produtosRevertidos = [...produtos];
+          produtosRevertidos[produtoIndex] = produtos[produtoIndex];
+          setProdutos(produtosRevertidos);
+        }
+        
+        if (filteredIndex !== -1) {
+          const filteredRevertidos = [...filteredProdutos];
+          filteredRevertidos[filteredIndex] = filteredProdutos[filteredIndex];
+          setFilteredProdutos(filteredRevertidos);
+        }
+        
+        if (selectedProduct && selectedProduct.item_id.toString() === id.toString()) {
+          setSelectedProduct(produtos[produtoIndex]);
+        }
       }
 
     } catch (err) {
