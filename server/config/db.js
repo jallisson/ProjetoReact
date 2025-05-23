@@ -3,14 +3,10 @@ require('dotenv').config();
 
 // Criação do pool de conexões
 const pool = mysql.createPool({
-  //host: process.env.DB_HOST || 'localhost',
-  host: process.env.DB_HOST || 'acqualimpma.com.br',
-  //user: process.env.DB_USER || 'root',
-  user: process.env.DB_USER || 'acqua917_walney',
-  //password: process.env.DB_PASSWORD || '',
-  password: process.env.DB_PASSWORD || 'Jjob@-2526',
-  //database: process.env.DB_NAME || 'seu_banco_de_dados',
-  database: process.env.DB_NAME || 'acqua917_walney',
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'seu_banco_de_dados',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
