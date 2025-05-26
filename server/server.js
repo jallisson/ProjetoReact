@@ -5,7 +5,7 @@ require('dotenv').config();
 
 const app = express();
 // Definindo explicitamente a porta 5000
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
