@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // Cria uma instância do axios com a URL base da API
 const api = axios.create({
-  baseURL: '/api'  // Quando configurado com proxy no vite.config.js
+  baseURL: import.meta.env.VITE_API_URL || '/api'  // Quando configurado com proxy no vite.config.js
 })
 
 /**
