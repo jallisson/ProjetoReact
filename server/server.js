@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { pool, testConnection } = require('./config/db');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -277,6 +278,8 @@ app.put('/api/produtos/:id', async (req, res) => {
         ]
       );
     }
+
+
     
     // Retornar o produto atualizado
     const [updatedProduct] = await pool.query(`
@@ -302,7 +305,18 @@ app.get('/', (req, res) => {
   res.send('API de Gerenciamento de Produtos está funcionando!');
 });
 
-// Iniciar servidor
+// ADICIONE ISTO AQUI - DEPOIS DAS ROTAS DE API, ANTES DO app.listen
+if (process.env.NODE_ENV === 'production') {
+  // Servir arquivos estáticos do frontend
+  app.use(express.static(path.join(__dirname, '../dist')));
+  
+  // Qualquer rota não-API deve retornar o index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
+}
+
+// Iniciar servidor (já existente)
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
