@@ -305,6 +305,16 @@ app.get('/', (req, res) => {
   res.send('API de Gerenciamento de Produtos está funcionando!');
 });
 
+// ADICIONE ISTO AQUI - DEPOIS DAS ROTAS DE API, ANTES DO app.listen
+if (process.env.NODE_ENV === 'production') {
+  // Servir arquivos estáticos do frontend
+  app.use(express.static(path.join(__dirname, '../dist')));
+  
+  // Qualquer rota não-API deve retornar o index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
+}
 
 // Iniciar servidor (já existente)
 app.listen(PORT, () => {
