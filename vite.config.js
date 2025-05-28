@@ -9,7 +9,7 @@ export default defineConfig({
     proxy: {
       // Configuração do proxy para redirecionar chamadas API para o backend
       '/api': {
-        target: 'https://projetoreact-1.onrender.com/',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
       }
