@@ -3,6 +3,13 @@ import EditableCell from './EditableCell';
 import axios from 'axios';
 import './StatusBar.css';
 
+// Configuração simples da API
+const API_URL = window.location.hostname === 'localhost' 
+  ? 'http://localhost:5000'
+  : 'https://projetoreact-1.onrender.com';
+
+axios.defaults.baseURL = API_URL;
+
 const ProdutoList = ({ searchParams }) => {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
