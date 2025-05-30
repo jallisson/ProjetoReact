@@ -26,13 +26,13 @@ const validateData = (req, res, next) => {
   if (req.method === 'PUT' || req.method === 'POST') {
     // Campos numéricos que devem ser validados
     const numericFields = [
-      'fornecedor_id', 'estoque_pdv1', 'estoque_pdv2', 'estoque_pdv3', 
-      'estoque_pdv4', 'estoque_pdv5', 'estoque_pdv6', 'estoque_pdv7', 
+      'fornecedor_id', 'estoque_pdv1', 'estoque_pdv2', 'estoque_pdv3',
+      'estoque_pdv4', 'estoque_pdv5', 'estoque_pdv6', 'estoque_pdv7',
       'estoque_pdv8', 'estoque_pdv9', 'estoque_pdv10', 'estoque_pdv11',
       'estoque_pdv12', 'estoque_pdv13', 'estoque_pdv14', 'estoque_pdv15',
       'custo_venda', 'valor_venda1', 'valor_venda2', 'valor_venda3', 'valor_venda4'
     ];
-    
+
     const invalidFields = [];
 
     // Garantir que o campo 'ativo' não seja nulo
@@ -110,34 +110,62 @@ app.get('/api/produtos', async (req, res) => {
   }
 });
 
-// Rota de pesquisa com paginação
+// Rota de pesquisa com paginação - CORRIGIDA
 app.get('/api/produtos/search', async (req, res) => {
   try {
     const termo = req.query.termo || '';
+    const campo = req.query.campo || 'descricao';
+    const modo = req.query.modo || 'contém';
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 25;
     const offset = (page - 1) * limit;
     const sortDirection = req.query.sort === 'desc' ? 'DESC' : 'ASC';
 
-    const [rows] = await pool.query(
-      `SELECT 
+    let whereClause = '';
+    let queryParams = [];
+
+    // Construir a cláusula WHERE baseada no campo e modo de pesquisa
+    if (campo === 'descricao' && modo === 'maior_igual') {
+      // Pesquisa "maior ou igual" alfabeticamente
+      whereClause = 'WHERE descricao >= ?';
+      queryParams.push(termo.toUpperCase());
+    } else if (campo === 'descricao' && modo === 'contém') {
+      // Pesquisa que contém o termo
+      whereClause = 'WHERE descricao LIKE ?';
+      queryParams.push(`%${termo}%`);
+    } else if (campo === 'id' && modo === 'exato') {
+      // Pesquisa exata por ID
+      whereClause = 'WHERE item_id = ?';
+      queryParams.push(termo);
+    } else if (campo === 'fornecedor_id' && modo === 'exato') {
+      // Pesquisa exata por fornecedor
+      whereClause = 'WHERE fornecedor_id = ?';
+      queryParams.push(parseInt(termo) || 0);
+    } else {
+      // Padrão: pesquisa que contém
+      whereClause = 'WHERE descricao LIKE ? OR item_id LIKE ?';
+      queryParams.push(`%${termo}%`, `%${termo}%`);
+    }
+
+    // Query principal com paginação
+    const mainQuery = `
+      SELECT 
         item_id, descricao, fornecedor_id, ativo,
         estoque_pdv1, estoque_pdv2, estoque_pdv3, estoque_pdv4, estoque_pdv5,
         estoque_pdv6, estoque_pdv7, estoque_pdv8, estoque_pdv9, estoque_pdv10,
         estoque_pdv11, estoque_pdv12, estoque_pdv13, estoque_pdv14, estoque_pdv15,
         custo_venda, valor_venda1, valor_venda2, valor_venda3, valor_venda4
       FROM itens 
-      WHERE descricao LIKE ? OR item_id LIKE ?
-      ORDER BY item_id ${sortDirection}
-      LIMIT ? OFFSET ?`,
-      [`%${termo}%`, `%${termo}%`, limit, offset]
-    );
+      ${whereClause}
+      ORDER BY ${campo === 'descricao' ? 'descricao' : 'item_id'} ${sortDirection}
+      LIMIT ? OFFSET ?
+    `;
 
-    // Contar total de registros para meta-informações de paginação
-    const [countResult] = await pool.query(
-      'SELECT COUNT(*) as total FROM itens WHERE descricao LIKE ? OR item_id LIKE ?', 
-      [`%${termo}%`, `%${termo}%`]
-    );
+    const [rows] = await pool.query(mainQuery, [...queryParams, limit, offset]);
+
+    // Query para contar total de registros
+    const countQuery = `SELECT COUNT(*) as total FROM itens ${whereClause}`;
+    const [countResult] = await pool.query(countQuery, queryParams);
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
 
@@ -160,31 +188,31 @@ app.get('/api/produtos/search', async (req, res) => {
 app.put('/api/produtos/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Extrair valores do corpo da requisição com valores padrão para evitar NULL
-    const { 
-      descricao = '', 
-      fornecedor_id = 0, 
+    const {
+      descricao = '',
+      fornecedor_id = 0,
       ativo = 'A',
-      estoque_pdv1 = 0, 
-      estoque_pdv2 = 0, 
-      estoque_pdv3 = 0, 
-      estoque_pdv4 = 0, 
+      estoque_pdv1 = 0,
+      estoque_pdv2 = 0,
+      estoque_pdv3 = 0,
+      estoque_pdv4 = 0,
       estoque_pdv5 = 0,
-      estoque_pdv6 = 0, 
-      estoque_pdv7 = 0, 
-      estoque_pdv8 = 0, 
-      estoque_pdv9 = 0, 
+      estoque_pdv6 = 0,
+      estoque_pdv7 = 0,
+      estoque_pdv8 = 0,
+      estoque_pdv9 = 0,
       estoque_pdv10 = 0,
-      estoque_pdv11 = 0, 
-      estoque_pdv12 = 0, 
-      estoque_pdv13 = 0, 
-      estoque_pdv14 = 0, 
+      estoque_pdv11 = 0,
+      estoque_pdv12 = 0,
+      estoque_pdv13 = 0,
+      estoque_pdv14 = 0,
       estoque_pdv15 = 0,
-      custo_venda = 0, 
-      valor_venda1 = 0, 
-      valor_venda2 = 0, 
-      valor_venda3 = 0, 
+      custo_venda = 0,
+      valor_venda1 = 0,
+      valor_venda2 = 0,
+      valor_venda3 = 0,
       valor_venda4 = 0
     } = req.body;
 
@@ -199,7 +227,7 @@ app.put('/api/produtos/:id', async (req, res) => {
         `UPDATE itens SET ${fieldName} = ? WHERE item_id = ?`,
         [fieldValue, id]
       );
-      
+
       if (result.affectedRows === 0) {
         return res.status(404).json({ message: 'Produto não encontrado' });
       }
@@ -207,10 +235,10 @@ app.put('/api/produtos/:id', async (req, res) => {
       // Atualização de múltiplos campos (usando um método mais seguro)
       // Primeiro obtemos o produto atual para manter campos não modificados
       const [currentProduct] = await pool.query(
-        `SELECT * FROM itens WHERE item_id = ?`, 
+        `SELECT * FROM itens WHERE item_id = ?`,
         [id]
       );
-      
+
       if (currentProduct.length === 0) {
         return res.status(404).json({ message: 'Produto não encontrado' });
       }
@@ -254,8 +282,8 @@ app.put('/api/produtos/:id', async (req, res) => {
           mergedData.descricao,
           mergedData.fornecedor_id,
           mergedData.ativo,
-          mergedData.estoque_pdv1, 
-          mergedData.estoque_pdv2, 
+          mergedData.estoque_pdv1,
+          mergedData.estoque_pdv2,
           mergedData.estoque_pdv3,
           mergedData.estoque_pdv4,
           mergedData.estoque_pdv5,
@@ -280,7 +308,7 @@ app.put('/api/produtos/:id', async (req, res) => {
     }
 
 
-    
+
     // Retornar o produto atualizado
     const [updatedProduct] = await pool.query(`
       SELECT 
@@ -292,7 +320,7 @@ app.put('/api/produtos/:id', async (req, res) => {
       FROM itens 
       WHERE item_id = ?
     `, [id]);
-    
+
     res.json(updatedProduct[0]);
   } catch (error) {
     console.error('Erro ao atualizar produto:', error);

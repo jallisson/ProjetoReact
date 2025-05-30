@@ -21,6 +21,22 @@ const SearchBar = ({ onSearch }) => {
     { value: 'startsWith', label: 'Começa com' }
   ];
 
+  // NOVA FUNÇÃO: Gerar placeholder mais descritivo
+  const getPlaceholder = () => {
+    switch (filterBy) {
+      case 'codigo':
+        return 'Digite o código exato...';
+      case 'descricao':
+        return 'Digite para buscar >= alfabeticamente';
+      case 'fornecedor':
+        return 'Digite o ID do fornecedor...';
+      case 'moto':
+        return 'Digite parte do nome (busca que contém)...';
+      default:
+        return 'Digite para pesquisar...';
+    }
+  };
+
   // Atualiza o modo de pesquisa quando o filtro é alterado
   useEffect(() => {
     // Encontrar o filtro selecionado
@@ -90,7 +106,7 @@ const SearchBar = ({ onSearch }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Digite para pesquisar... (${searchModes.find(m => m.value === searchMode)?.label || 'Contém'})`}
+            placeholder={getPlaceholder()}
           />
         </div>
       </div>
