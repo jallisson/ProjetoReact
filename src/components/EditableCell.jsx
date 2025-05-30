@@ -176,25 +176,28 @@ const EditableCell = ({
     });
   }, []);
 
-  const handleClick = useCallback(() => {
-    if (!isEditing) {
-      startEditing();
-    }
-  }, [isEditing, startEditing]);
+// Substitua as funções handleClick e handleDoubleClick no EditableCell.jsx
 
-  const handleDoubleClick = useCallback(() => {
-    // Garantir que o texto inteiro seja selecionado no double-click
-    if (!isEditing) {
-      startEditing();
-      
-      // Selecionar todo o texto
-      requestAnimationFrame(() => {
-        if (inputRef.current) {
-          inputRef.current.select();
-        }
-      });
-    }
-  }, [isEditing, startEditing]);
+const handleClick = useCallback(() => {
+  // Clique simples apenas foca na célula, não inicia edição
+  if (cellRef.current) {
+    cellRef.current.focus();
+  }
+}, []);
+
+const handleDoubleClick = useCallback(() => {
+  // Apenas duplo clique inicia a edição
+  if (!isEditing) {
+    startEditing();
+    
+    // Selecionar todo o texto
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.select();
+      }
+    });
+  }
+}, [isEditing, startEditing]);
 
   const handleInputChange = useCallback((e) => {
     setInputValue(e.target.value);
