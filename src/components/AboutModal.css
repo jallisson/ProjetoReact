@@ -1,0 +1,449 @@
+/* =============================================== */
+/* MODAL OVERLAY E CONTAINER                      */
+/* =============================================== */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  animation: slideUp 0.3s ease-out;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* =============================================== */
+/* BOTÃO DE FECHAR                                */
+/* =============================================== */
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.modal-close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  transform: scale(1.05);
+}
+
+.modal-close:active {
+  transform: scale(0.95);
+}
+
+/* =============================================== */
+/* HEADER DO MODAL                                */
+/* =============================================== */
+
+.modal-header {
+  text-align: center;
+  padding: 2rem 2rem 1rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 16px 16px 0 0;
+}
+
+.developer-avatar {
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem auto;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.developer-avatar svg {
+  color: white;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.modal-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* =============================================== */
+/* CORPO DO MODAL                                 */
+/* =============================================== */
+
+.modal-body {
+  padding: 2rem;
+}
+
+.info-section {
+  margin-bottom: 1.5rem;
+}
+
+.info-section h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 0.25rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.role {
+  color: #718096;
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.info-section h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.info-section p {
+  color: #718096;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+/* =============================================== */
+/* TECNOLOGIAS                                    */
+/* =============================================== */
+
+.tech-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.tech-badge {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.tech-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* =============================================== */
+/* LISTA DE FEATURES                              */
+/* =============================================== */
+
+.features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0;
+}
+
+.features-list li {
+  color: #718096;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e2e8f0;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.features-list li:last-child {
+  border-bottom: none;
+}
+
+.features-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #48bb78;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+/* =============================================== */
+/* LINKS DE CONTATO                               */
+/* =============================================== */
+
+.contact-links {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.contact-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  color: white;
+  flex: 1;
+  justify-content: center;
+}
+
+.contact-link.linkedin {
+  background: linear-gradient(135deg, #0077b5, #005885);
+}
+
+.contact-link.linkedin:hover {
+  background: linear-gradient(135deg, #005885, #004066);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 119, 181, 0.3);
+}
+
+.contact-link.email {
+  background: linear-gradient(135deg, #ea4335, #c23321);
+}
+
+.contact-link.email:hover {
+  background: linear-gradient(135deg, #c23321, #a12e1f);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(234, 67, 53, 0.3);
+}
+
+.contact-link svg {
+  transition: transform 0.2s ease;
+}
+
+.contact-link:hover svg {
+  transform: scale(1.1);
+}
+
+/* =============================================== */
+/* INFORMAÇÕES DE VERSÃO                          */
+/* =============================================== */
+
+.version-info {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #e2e8f0;
+  text-align: center;
+}
+
+.version-info p {
+  color: #a0aec0;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.version-info strong {
+  color: #718096;
+}
+
+/* =============================================== */
+/* RESPONSIVIDADE                                 */
+/* =============================================== */
+
+@media screen and (max-width: 768px) {
+  .modal-overlay {
+    padding: 0.5rem;
+  }
+  
+  .modal-content {
+    max-width: 100%;
+    max-height: 95vh;
+    border-radius: 12px;
+  }
+  
+  .modal-header {
+    padding: 1.5rem 1.5rem 1rem 1.5rem;
+    border-radius: 12px 12px 0 0;
+  }
+  
+  .modal-body {
+    padding: 1.5rem;
+  }
+  
+  .developer-avatar {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .modal-title {
+    font-size: 1.5rem;
+  }
+  
+  .info-section h3 {
+    font-size: 1.3rem;
+  }
+  
+  .contact-links {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .contact-link {
+    justify-content: center;
+  }
+  
+  .tech-stack {
+    justify-content: center;
+  }
+  
+  .modal-close {
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .modal-header {
+    padding: 1rem;
+  }
+  
+  .modal-body {
+    padding: 1rem;
+  }
+  
+  .developer-avatar {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .modal-title {
+    font-size: 1.3rem;
+  }
+  
+  .info-section {
+    margin-bottom: 1.25rem;
+  }
+  
+  .tech-badge {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .contact-link {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .modal-close {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .modal-close svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* =============================================== */
+/* MELHORIAS DE ACESSIBILIDADE                   */
+/* =============================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal-content,
+  .tech-badge,
+  .contact-link {
+    animation: none;
+    transition: none;
+  }
+  
+  .contact-link:hover,
+  .tech-badge:hover {
+    transform: none;
+  }
+}
+
+/* Focus states para acessibilidade */
+.modal-close:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+.contact-link:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Scrollbar customizada para o modal */
+.modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
