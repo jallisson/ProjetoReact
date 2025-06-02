@@ -1,71 +1,408 @@
+/* =============================================== */
+/* NAVBAR MODERNO                                 */
+/* =============================================== */
+
 .navbar {
-    background-color: #282c34;
-    height: 60px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: sticky;
-    top: 0;
-    z-index: 999;
-  }
-  
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+
+.navbar-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  height: 70px;
+}
+
+/* =============================================== */
+/* BRAND / LOGO                                   */
+/* =============================================== */
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.navbar-brand:hover {
+  transform: scale(1.05);
+}
+
+.logo-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 45px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.logo-icon:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(10deg);
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.logo-main {
+  color: white;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.logo-sub {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+/* =============================================== */
+/* MENU DE NAVEGAÇÃO                              */
+/* =============================================== */
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0.5rem;
+}
+
+.nav-item {
+  position: relative;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 0.75rem 1.25rem;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  transition: width 0.3s ease;
+  z-index: 0;
+}
+
+.nav-link:hover::before {
+  width: 100%;
+}
+
+.nav-link:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.nav-link.active {
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 2px;
+  background: white;
+  border-radius: 2px;
+}
+
+.nav-link svg,
+.nav-link span {
+  position: relative;
+  z-index: 1;
+}
+
+.nav-link svg {
+  transition: transform 0.3s ease;
+}
+
+.nav-link:hover svg {
+  transform: scale(1.1);
+}
+
+/* =============================================== */
+/* AÇÕES DO NAVBAR                               */
+/* =============================================== */
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* Botão de Notificação */
+.notification-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.notification-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  background: #ff4757;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* Perfil do Usuário */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+.user-profile:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.user-name {
+  color: white;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+/* =============================================== */
+/* RESPONSIVIDADE                                 */
+/* =============================================== */
+
+@media screen and (max-width: 1024px) {
   .navbar-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    max-width: 1200px;
-    padding: 0 20px;
-  }
-  
-  .logo {
-    color: #fff;
-    font-size: 1.5rem;
-    font-weight: bold;
-    cursor: pointer;
-    text-decoration: none;
-  }
-  
-  .nav-menu {
-    display: flex;
-    list-style: none;
-    text-align: center;
-    margin: 0;
-    padding: 0;
-  }
-  
-  .nav-item {
-    padding: 0 1rem;
+    padding: 0 1.5rem;
   }
   
   .nav-link {
-    color: #fff;
-    text-decoration: none;
-    font-size: 1rem;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .nav-link span {
+    display: none;
+  }
+  
+  .nav-menu {
+    gap: 0.25rem;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .navbar-container {
+    height: 60px;
+    padding: 0 1rem;
+  }
+  
+  .logo-text {
+    display: none;
+  }
+  
+  .nav-menu {
+    display: none;
+  }
+  
+  .navbar-actions {
+    gap: 1rem;
+  }
+  
+  .user-name {
+    display: none;
+  }
+  
+  .user-profile {
     padding: 0.5rem;
-    display: inline-block;
-    position: relative;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .navbar-container {
+    height: 55px;
+    padding: 0 0.75rem;
   }
   
-  .nav-link::after {
-    content: '';
-    position: absolute;
-    width: 0;
-    height: 2px;
-    bottom: 0;
-    left: 50%;
-    background-color: #fff;
-    transition: all 0.3s ease;
+  .logo-icon {
+    width: 40px;
+    height: 40px;
   }
   
-  .nav-link:hover::after,
-  .nav-link.active::after {
-    width: 100%;
-    left: 0;
+  .notification-btn {
+    width: 40px;
+    height: 40px;
   }
   
-  @media screen and (max-width: 768px) {
-    .nav-menu {
-      display: none;
-    }
+  .user-profile {
+    width: 40px;
+    height: 40px;
   }
+  
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .notification-badge {
+    width: 16px;
+    height: 16px;
+    font-size: 0.65rem;
+  }
+}
+
+/* =============================================== */
+/* EFEITOS ESPECIAIS                             */
+/* =============================================== */
+
+/* Efeito de glass morphism */
+.navbar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  z-index: -1;
+}
+
+/* Animação suave ao carregar */
+.navbar {
+  animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Hover effect para toda a navbar */
+.navbar-container {
+  position: relative;
+}
+
+.navbar-container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transition: width 0.3s ease;
+}
+
+.navbar:hover .navbar-container::after {
+  width: 100%;
+}
+
+/* Efeito de brilho nos ícones */
+.logo-icon svg,
+.nav-link svg,
+.notification-btn svg,
+.user-avatar svg {
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.3));
+}

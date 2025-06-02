@@ -25,7 +25,6 @@ function App() {
     <div className="app-container">
       <Navbar />
       <main className="content">
-        <h1>Gerenciamento de Produtos</h1>
         <SearchBar onSearch={handleSearch} />
         {loading ? (
           <div className="loading">Buscando produtos...</div>
