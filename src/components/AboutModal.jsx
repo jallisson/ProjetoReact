@@ -32,10 +32,6 @@ const AboutModal = ({ isOpen, onClose }) => {
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal-content">
         <button className="modal-close" onClick={onClose} aria-label="Fechar modal">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
         </button>
         
         <div className="modal-header">
@@ -87,7 +83,7 @@ const AboutModal = ({ isOpen, onClose }) => {
           </div>
           
           <div className="info-section">
-            <h4>📞 99 991420419</h4>
+            <h4>📞 Contato</h4>
             <div className="contact-links">
               <a 
                 href="https://www.linkedin.com/in/jallisson-jallis-4b265b8b/" 
@@ -104,7 +100,7 @@ const AboutModal = ({ isOpen, onClose }) => {
               </a>
               
               <a 
-                href="mailto:jallissonn@hotmail.com" 
+                href="mailto:jallisson@email.com" 
                 className="contact-link email"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
