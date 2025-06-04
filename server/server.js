@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const { pool, testConnection } = require('./config/db');
 const path = require('path');
-require('dotenv').config();
 
 const app = express();
 // Definindo explicitamente a porta 5000
@@ -12,16 +11,17 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Teste de conexão na inicialização
+// Teste de conexão na inicialização (agora funciona!)
 testConnection()
   .then(connected => {
     if (!connected) {
-      console.error('Não foi possível conectar ao banco de dados. Verifique suas configurações.');
+      console.error('❌ Não foi possível conectar ao banco de dados. Verifique suas configurações.');
       process.exit(1);
     }
+    console.log('🎉 Sistema iniciado com sucesso!');
   });
 
-// Middleware para validar tipos de dados e garantir valores não nulos para campos obrigatórios
+// Middleware para validar tipos de dados
 const validateData = (req, res, next) => {
   if (req.method === 'PUT' || req.method === 'POST') {
     // Campos numéricos que devem ser validados
@@ -37,19 +37,17 @@ const validateData = (req, res, next) => {
 
     // Garantir que o campo 'ativo' não seja nulo
     if (req.body.ativo === null || req.body.ativo === undefined) {
-      req.body.ativo = 'A'; // Valor padrão se não for especificado
+      req.body.ativo = 'A';
     }
 
     // Validar e converter campos numéricos
     numericFields.forEach(field => {
       if (req.body[field] !== undefined) {
         if (req.body[field] === null || req.body[field] === '') {
-          // Converter valores vazios para 0
           req.body[field] = 0;
         } else if (isNaN(Number(req.body[field]))) {
           invalidFields.push(field);
         } else {
-          // Converter para número
           req.body[field] = Number(req.body[field]);
         }
       }
@@ -77,7 +75,7 @@ app.get('/api/produtos', async (req, res) => {
     const offset = (page - 1) * limit;
     const sortDirection = req.query.sort === 'desc' ? 'DESC' : 'ASC';
 
-    // Consulta paginada
+    // Consulta paginada otimizada para sua estrutura
     const [rows] = await pool.query(`
       SELECT 
         item_id, descricao, fornecedor_id, ativo,
@@ -90,7 +88,7 @@ app.get('/api/produtos', async (req, res) => {
       LIMIT ? OFFSET ?
     `, [limit, offset]);
 
-    // Contar total de registros para meta-informações de paginação
+    // Contar total de registros
     const [countResult] = await pool.query('SELECT COUNT(*) as total FROM itens');
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
@@ -110,7 +108,7 @@ app.get('/api/produtos', async (req, res) => {
   }
 });
 
-// Rota de pesquisa com paginação - CORRIGIDA
+// Rota de pesquisa otimizada
 app.get('/api/produtos/search', async (req, res) => {
   try {
     const termo = req.query.termo || '';
@@ -124,21 +122,17 @@ app.get('/api/produtos/search', async (req, res) => {
     let whereClause = '';
     let queryParams = [];
 
-    // Construir a cláusula WHERE baseada no campo e modo de pesquisa
+    // Construir cláusula WHERE
     if (campo === 'descricao' && modo === 'maior_igual') {
-      // Pesquisa "maior ou igual" alfabeticamente
       whereClause = 'WHERE descricao >= ?';
       queryParams.push(termo.toUpperCase());
     } else if (campo === 'descricao' && modo === 'contém') {
-      // Pesquisa que contém o termo
       whereClause = 'WHERE descricao LIKE ?';
       queryParams.push(`%${termo}%`);
     } else if (campo === 'id' && modo === 'exato') {
-      // Pesquisa exata por ID
       whereClause = 'WHERE item_id = ?';
       queryParams.push(termo);
     } else if (campo === 'fornecedor_id' && modo === 'exato') {
-      // Pesquisa exata por fornecedor
       whereClause = 'WHERE fornecedor_id = ?';
       queryParams.push(parseInt(termo) || 0);
     } else {
@@ -147,7 +141,7 @@ app.get('/api/produtos/search', async (req, res) => {
       queryParams.push(`%${termo}%`, `%${termo}%`);
     }
 
-    // Query principal com paginação
+    // Query principal
     const mainQuery = `
       SELECT 
         item_id, descricao, fornecedor_id, ativo,
@@ -163,7 +157,7 @@ app.get('/api/produtos/search', async (req, res) => {
 
     const [rows] = await pool.query(mainQuery, [...queryParams, limit, offset]);
 
-    // Query para contar total de registros
+    // Contar total
     const countQuery = `SELECT COUNT(*) as total FROM itens ${whereClause}`;
     const [countResult] = await pool.query(countQuery, queryParams);
     const totalItems = countResult[0].total;
@@ -189,40 +183,11 @@ app.put('/api/produtos/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Extrair valores do corpo da requisição com valores padrão para evitar NULL
-    const {
-      descricao = '',
-      fornecedor_id = 0,
-      ativo = 'A',
-      estoque_pdv1 = 0,
-      estoque_pdv2 = 0,
-      estoque_pdv3 = 0,
-      estoque_pdv4 = 0,
-      estoque_pdv5 = 0,
-      estoque_pdv6 = 0,
-      estoque_pdv7 = 0,
-      estoque_pdv8 = 0,
-      estoque_pdv9 = 0,
-      estoque_pdv10 = 0,
-      estoque_pdv11 = 0,
-      estoque_pdv12 = 0,
-      estoque_pdv13 = 0,
-      estoque_pdv14 = 0,
-      estoque_pdv15 = 0,
-      custo_venda = 0,
-      valor_venda1 = 0,
-      valor_venda2 = 0,
-      valor_venda3 = 0,
-      valor_venda4 = 0
-    } = req.body;
-
-    // Verificar se estamos atualizando um campo específico ou múltiplos campos
+    // Se estamos atualizando um campo específico
     if (Object.keys(req.body).length === 1) {
-      // Atualização de um único campo
       const fieldName = Object.keys(req.body)[0];
       const fieldValue = req.body[fieldName];
 
-      // Construir query dinâmica para atualizar apenas o campo específico
       const [result] = await pool.query(
         `UPDATE itens SET ${fieldName} = ? WHERE item_id = ?`,
         [fieldValue, id]
@@ -232,8 +197,7 @@ app.put('/api/produtos/:id', async (req, res) => {
         return res.status(404).json({ message: 'Produto não encontrado' });
       }
     } else {
-      // Atualização de múltiplos campos (usando um método mais seguro)
-      // Primeiro obtemos o produto atual para manter campos não modificados
+      // Atualização de múltiplos campos
       const [currentProduct] = await pool.query(
         `SELECT * FROM itens WHERE item_id = ?`,
         [id]
@@ -243,73 +207,41 @@ app.put('/api/produtos/:id', async (req, res) => {
         return res.status(404).json({ message: 'Produto não encontrado' });
       }
 
-      // Mesclar dados atuais com novos dados (prioridade para novos dados)
+      // Mesclar dados
       const mergedData = {
         ...currentProduct[0],
         ...req.body,
-        // Garantir que campos obrigatórios nunca sejam NULL
         ativo: req.body.ativo || currentProduct[0].ativo || 'A'
       };
 
-      // Agora atualizamos todos os campos com os valores mesclados
+      // Atualizar todos os campos
       const [result] = await pool.query(
         `UPDATE itens 
          SET descricao = ?, 
              fornecedor_id = ?, 
              ativo = ?, 
-             estoque_pdv1 = ?, 
-             estoque_pdv2 = ?, 
-             estoque_pdv3 = ?,
-             estoque_pdv4 = ?,
-             estoque_pdv5 = ?,
-             estoque_pdv6 = ?,
-             estoque_pdv7 = ?,
-             estoque_pdv8 = ?,
-             estoque_pdv9 = ?,
-             estoque_pdv10 = ?,
-             estoque_pdv11 = ?,
-             estoque_pdv12 = ?,
-             estoque_pdv13 = ?,
-             estoque_pdv14 = ?,
-             estoque_pdv15 = ?,
-             custo_venda = ?,
-             valor_venda1 = ?,
-             valor_venda2 = ?,
-             valor_venda3 = ?,
-             valor_venda4 = ?
+             estoque_pdv1 = ?, estoque_pdv2 = ?, estoque_pdv3 = ?,
+             estoque_pdv4 = ?, estoque_pdv5 = ?, estoque_pdv6 = ?,
+             estoque_pdv7 = ?, estoque_pdv8 = ?, estoque_pdv9 = ?,
+             estoque_pdv10 = ?, estoque_pdv11 = ?, estoque_pdv12 = ?,
+             estoque_pdv13 = ?, estoque_pdv14 = ?, estoque_pdv15 = ?,
+             custo_venda = ?, valor_venda1 = ?, valor_venda2 = ?,
+             valor_venda3 = ?, valor_venda4 = ?
          WHERE item_id = ?`,
         [
-          mergedData.descricao,
-          mergedData.fornecedor_id,
-          mergedData.ativo,
-          mergedData.estoque_pdv1,
-          mergedData.estoque_pdv2,
-          mergedData.estoque_pdv3,
-          mergedData.estoque_pdv4,
-          mergedData.estoque_pdv5,
-          mergedData.estoque_pdv6,
-          mergedData.estoque_pdv7,
-          mergedData.estoque_pdv8,
-          mergedData.estoque_pdv9,
-          mergedData.estoque_pdv10,
-          mergedData.estoque_pdv11,
-          mergedData.estoque_pdv12,
-          mergedData.estoque_pdv13,
-          mergedData.estoque_pdv14,
-          mergedData.estoque_pdv15,
-          mergedData.custo_venda,
-          mergedData.valor_venda1,
-          mergedData.valor_venda2,
-          mergedData.valor_venda3,
-          mergedData.valor_venda4,
-          id
+          mergedData.descricao, mergedData.fornecedor_id, mergedData.ativo,
+          mergedData.estoque_pdv1, mergedData.estoque_pdv2, mergedData.estoque_pdv3,
+          mergedData.estoque_pdv4, mergedData.estoque_pdv5, mergedData.estoque_pdv6,
+          mergedData.estoque_pdv7, mergedData.estoque_pdv8, mergedData.estoque_pdv9,
+          mergedData.estoque_pdv10, mergedData.estoque_pdv11, mergedData.estoque_pdv12,
+          mergedData.estoque_pdv13, mergedData.estoque_pdv14, mergedData.estoque_pdv15,
+          mergedData.custo_venda, mergedData.valor_venda1, mergedData.valor_venda2,
+          mergedData.valor_venda3, mergedData.valor_venda4, id
         ]
       );
     }
 
-
-
-    // Retornar o produto atualizado
+    // Retornar produto atualizado
     const [updatedProduct] = await pool.query(`
       SELECT 
         item_id, descricao, fornecedor_id, ativo,
@@ -330,10 +262,11 @@ app.put('/api/produtos/:id', async (req, res) => {
 
 // Rota de teste
 app.get('/', (req, res) => {
-  res.send('API de Gerenciamento de Produtos está funcionando!');
+  res.send('🎉 API de Gerenciamento de Produtos funcionando!');
 });
 
-// Iniciar servidor (já existente)
+// Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🌍 Acesse: http://localhost:${PORT}`);
 });

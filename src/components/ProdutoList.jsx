@@ -3,12 +3,10 @@ import EditableCell from './EditableCell';
 import axios from 'axios';
 import './StatusBar.css';
 
-// Configuração simples da API
-const API_URL = window.location.hostname === 'localhost'
-  ? 'http://localhost:5000'
-  : 'https://projetoreact-1.onrender.com';
-
+// Configuração da API
+const API_URL = 'http://localhost:5000' ||  'https://projetoreact-1.onrender.com';
 axios.defaults.baseURL = API_URL;
+
 
 const ProdutoList = ({ searchParams }) => {
   const [produtos, setProdutos] = useState([]);
@@ -16,7 +14,6 @@ const ProdutoList = ({ searchParams }) => {
   const [error, setError] = useState(null);
   const [currentCell, setCurrentCell] = useState({ rowIndex: 0, colIndex: 1 });
   const [filteredProdutos, setFilteredProdutos] = useState([]);
-  // Estado para acompanhar o produto selecionado atualmente
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   // Estados para paginação infinita
@@ -26,7 +23,7 @@ const ProdutoList = ({ searchParams }) => {
   const loadingRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Defina as colunas da tabela
+  // Definir colunas da tabela
   const columns = [
     { id: 'item_id', header: 'Código', editable: false, type: 'text' },
     { id: 'descricao', header: 'Nome', editable: true, type: 'text' },
@@ -54,26 +51,71 @@ const ProdutoList = ({ searchParams }) => {
     { id: 'venda4', header: 'Venda4', editable: true, type: 'number', truncate: true }
   ];
 
-  // Função para buscar dados iniciais - CORRIGIDA
+  // Função para converter string para número de forma segura
+  const safeParseFloat = (value) => {
+    if (value === null || value === undefined || value === '') return 0;
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
+  // Função para normalizar dados do backend (CORRIGIDA para strings)
+  const normalizeProductData = (backendItems) => {
+    console.log('🔄 Normalizando dados do backend...');
+    console.log('📋 Exemplo de item bruto:', backendItems[0]);
+
+    return backendItems.map(item => {
+      const produto = {};
+
+      // Campos básicos
+      produto.item_id = item.item_id || item.id || '';
+      produto.descricao = item.descricao || '';
+      produto.fornecedor_id = safeParseFloat(item.fornecedor_id);
+      produto.situacao = item.ativo || 'A';
+
+      // Mapear estoque_pdv1-15 para loja1-15 (convertendo strings para números)
+      for (let i = 1; i <= 15; i++) {
+        const estoqueField = `estoque_pdv${i}`;
+        const lojaField = `loja${i}`;
+        produto[lojaField] = safeParseFloat(item[estoqueField]);
+      }
+
+      // Mapear custo_venda para custo_final (convertendo string para número)
+      produto.custo_final = safeParseFloat(item.custo_venda);
+
+      // Mapear valor_venda1-4 para venda1-4 (convertendo strings para números)
+      for (let i = 1; i <= 4; i++) {
+        const valorField = `valor_venda${i}`;
+        const vendaField = `venda${i}`;
+        produto[vendaField] = safeParseFloat(item[valorField]);
+      }
+
+      return produto;
+    });
+  };
+
+  // Função para buscar dados iniciais
   const fetchInitialProdutos = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       setPage(1);
+
+      console.log('🚀 Iniciando busca de produtos...');
+      console.log('📋 Parâmetros de busca:', searchParams);
 
       const params = {
         page: 1,
-        limit: 50, // Reduzindo para 50 inicialmente
+        limit: 50,
         sort: 'asc'
       };
 
-      let data = [];
+      let response;
 
       try {
         if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
           const searchTerm = searchParams.term;
+          console.log(`🔎 Busca com filtro: ${searchParams.filter} = "${searchTerm}"`);
 
-          let response;
           if (searchParams.filter === 'codigo') {
             response = await axios.get(`/api/produtos/search`, {
               params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' }
@@ -87,85 +129,62 @@ const ProdutoList = ({ searchParams }) => {
               params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' }
             });
           }
-
-          if (response) {
-            if (response.data.items) {
-              data = response.data.items;
-              console.log('Busca com filtro - Paginação:', response.data.pagination);
-              setHasMore(response.data.pagination.currentPage < response.data.pagination.totalPages);
-            } else if (Array.isArray(response.data)) {
-              data = response.data;
-              setHasMore(data.length >= params.limit);
-            }
-          } else {
-            setHasMore(false);
-          }
         } else {
-          // Busca geral
-          const response = await axios.get('/api/produtos', { params });
-          console.log('Resposta da API (busca geral):', response.data);
-
-          if (response.data.items) {
-            data = response.data.items;
-            console.log('Paginação inicial:', response.data.pagination);
-            console.log(`Página atual: ${response.data.pagination.currentPage}, Total de páginas: ${response.data.pagination.totalPages}`);
-
-            // Verificação mais robusta
-            const currentPage = response.data.pagination.currentPage || 1;
-            const totalPages = response.data.pagination.totalPages || 1;
-            const totalItems = response.data.pagination.totalItems || 0;
-
-            console.log(`Total de itens no banco: ${totalItems}`);
-            setHasMore(currentPage < totalPages && totalItems > data.length);
-          } else if (Array.isArray(response.data)) {
-            data = response.data;
-            console.log(`Recebido array direto com ${data.length} itens`);
-            // Se recebeu um array direto, assumir que há mais se recebeu o limite completo
-            setHasMore(data.length >= params.limit);
-          } else {
-            console.log('Formato de resposta não reconhecido:', response.data);
-            setHasMore(false);
-          }
+          console.log('📦 Busca geral de produtos...');
+          response = await axios.get('/api/produtos', { params });
         }
-      } catch (error) {
-        console.warn('Erro na API:', error);
-        setHasMore(false);
-        setError('Erro ao buscar dados. Por favor, tente novamente.');
+
+        console.log('📡 Resposta da API recebida:', response?.data);
+
+      } catch (apiError) {
+        console.error('❌ Erro na API:', apiError);
+        setError(`Erro ao conectar com a API: ${apiError.message}`);
+        setLoading(false);
+        return;
       }
 
-      console.log(`Carregamento inicial: ${data.length} produtos`);
+      if (!response || !response.data) {
+        setError('API retornou resposta vazia');
+        setLoading(false);
+        return;
+      }
 
-      // Normalização de dados
-      const produtosNormalizados = data.map(item => {
-        const produto = {};
-
-        produto.item_id = item.item_id || item.id || item.codigo || item.cod || '';
-        produto.descricao = item.descricao || item.nome || '';
-        produto.fornecedor_id = item.fornecedor_id || item.fornecedor || 0;
-        produto.situacao = item.ativo || 'A';
-
-        for (let i = 1; i <= 15; i++) {
-          const lojaField = `loja${i}`;
-          const value = parseFloat(item[lojaField] || item[`estoque_pdv${i}`] || 0);
-          produto[lojaField] = value;
+      let data = [];
+      if (response.data.items && Array.isArray(response.data.items)) {
+        data = response.data.items;
+        console.log(`✅ ${data.length} produtos recebidos via paginação`);
+        if (response.data.pagination) {
+          setHasMore(response.data.pagination.currentPage < response.data.pagination.totalPages);
+          console.log(`📄 Página ${response.data.pagination.currentPage} de ${response.data.pagination.totalPages}`);
         }
+      } else if (Array.isArray(response.data)) {
+        data = response.data;
+        console.log(`✅ ${data.length} produtos recebidos via array direto`);
+        setHasMore(data.length >= params.limit);
+      }
 
-        produto.custo_final = parseFloat(item.custo_final || item.custo_venda || item.custo || 0);
+      console.log(`📊 Total de produtos brutos recebidos: ${data.length}`);
 
-        for (let i = 1; i <= 4; i++) {
-          const vendaField = `venda${i}`;
-          produto[vendaField] = parseFloat(item[vendaField] || item[`valor_venda${i}`] || 0);
-        }
+      if (!data || data.length === 0) {
+        console.warn('⚠️ Nenhum produto retornado pela API');
+        setProdutos([]);
+        setFilteredProdutos([]);
+        setError('A API não retornou produtos. Verifique se há dados no banco.');
+        setLoading(false);
+        return;
+      }
 
-        return produto;
-      });
+      // Normalizar dados
+      console.log('🔄 Normalizando dados...');
+      const produtosNormalizados = normalizeProductData(data);
+      console.log('✅ Primeiro produto normalizado:', produtosNormalizados[0]);
 
       setProdutos(produtosNormalizados);
 
-      // Aplicar filtros locais e ordenação
+      // Aplicar filtros locais se necessário
       if ((searchParams.filter === 'codigo' && searchParams.term) ||
-        (searchParams.filter === 'moto' && searchParams.term)) {
-
+          (searchParams.filter === 'moto' && searchParams.term)) {
+        
         let filtered = produtosNormalizados;
 
         if (searchParams.filter === 'codigo') {
@@ -176,12 +195,11 @@ const ProdutoList = ({ searchParams }) => {
           filtered = produtosNormalizados.filter(produto =>
             produto.descricao.toLowerCase().includes(searchParams.term.toLowerCase())
           );
-
           filtered.sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
         }
 
         setFilteredProdutos(filtered);
-        setHasMore(false); // Não permitir scroll infinito para filtros locais
+        setHasMore(false);
       } else if (searchParams.filter === 'descricao' && searchParams.term) {
         const sortedProdutos = [...produtosNormalizados].sort((a, b) =>
           a.descricao.localeCompare(b.descricao, 'pt-BR')
@@ -195,10 +213,12 @@ const ProdutoList = ({ searchParams }) => {
         setSelectedProduct(produtosNormalizados[0]);
       }
 
+      console.log(`✅ ${produtosNormalizados.length} produtos processados e prontos para exibição`);
       setError(null);
+
     } catch (err) {
-      console.error('Erro ao carregar produtos:', err);
-      setError('Erro ao carregar produtos.');
+      console.error('💥 Erro crítico ao carregar produtos:', err);
+      setError(`Erro ao carregar produtos: ${err.message}`);
       setProdutos([]);
       setFilteredProdutos([]);
       setHasMore(false);
@@ -207,16 +227,13 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [searchParams]);
 
-  // Versão melhorada da função fetchMoreProdutos
-  // Versão com diagnóstico da função fetchMoreProdutos
-
+  // Função para carregar mais produtos
   const fetchMoreProdutos = useCallback(async () => {
     if (!hasMore || loadingMore) {
-      console.log(`Não carregando mais: hasMore=${hasMore}, loadingMore=${loadingMore}`);
       return;
     }
 
-    console.log(`Iniciando carregamento da página ${page + 1}`);
+    console.log(`📄 Carregando página ${page + 1}...`);
 
     try {
       setLoadingMore(true);
@@ -228,110 +245,57 @@ const ProdutoList = ({ searchParams }) => {
         sort: 'asc'
       };
 
+      // Para pesquisas locais, não fazer scroll infinito
+      if (searchParams.filter === 'moto' || searchParams.filter === 'codigo') {
+        setHasMore(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      let response;
+
+      if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
+        const searchTerm = searchParams.term;
+
+        if (searchParams.filter === 'descricao') {
+          response = await axios.get(`/api/produtos/search`, {
+            params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' }
+          });
+        } else if (searchParams.filter === 'fornecedor') {
+          response = await axios.get(`/api/produtos/search`, {
+            params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' }
+          });
+        }
+      } else {
+        response = await axios.get('/api/produtos', { params });
+      }
+
       let data = [];
-
-      try {
-        // Para pesquisas que são feitas localmente (moto), não fazer scroll infinito
-        if (searchParams.filter === 'moto' || searchParams.filter === 'codigo') {
-          console.log('Filtro local detectado, parando scroll infinito');
-          setHasMore(false);
-          setLoadingMore(false);
-          return;
+      if (response && response.data) {
+        if (response.data.items) {
+          data = response.data.items;
+          setHasMore(response.data.pagination.currentPage < response.data.pagination.totalPages);
+        } else if (Array.isArray(response.data)) {
+          data = response.data;
+          setHasMore(data.length >= params.limit);
         }
-
-        let response;
-
-        if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
-          const searchTerm = searchParams.term;
-          console.log(`Carregando mais resultados para pesquisa: ${searchTerm} (${searchParams.filter})`);
-
-          if (searchParams.filter === 'descricao') {
-            response = await axios.get(`/api/produtos/search`, {
-              params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' }
-            });
-          } else if (searchParams.filter === 'fornecedor') {
-            response = await axios.get(`/api/produtos/search`, {
-              params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' }
-            });
-          }
-        } else {
-          console.log('Carregando mais produtos gerais');
-          response = await axios.get('/api/produtos', { params });
-        }
-
-        if (response && response.data) {
-          console.log('Resposta da página', nextPage, ':', response.data);
-
-          if (response.data.items) {
-            data = response.data.items;
-            console.log(`Página ${nextPage}: ${data.length} itens recebidos`);
-            console.log('Paginação:', response.data.pagination);
-
-            const currentPage = response.data.pagination.currentPage || nextPage;
-            const totalPages = response.data.pagination.totalPages || 1;
-
-            console.log(`Página atual: ${currentPage}, Total de páginas: ${totalPages}`);
-            setHasMore(currentPage < totalPages);
-          } else if (Array.isArray(response.data)) {
-            data = response.data;
-            console.log(`Array direto recebido: ${data.length} itens`);
-            setHasMore(data.length >= params.limit);
-          } else {
-            console.log('Resposta vazia ou formato incorreto');
-            setHasMore(false);
-          }
-        } else {
-          console.log('Nenhuma resposta da API');
-          setHasMore(false);
-        }
-      } catch (error) {
-        console.warn('Erro na API ao carregar mais itens:', error);
-        setHasMore(false);
-        setLoadingMore(false);
-        return;
       }
 
-      // Se não recebeu dados, parar
       if (!data || data.length === 0) {
-        console.log('Nenhum dado recebido, parando carregamento');
         setHasMore(false);
         setLoadingMore(false);
         return;
       }
 
-      // Normalização dos dados
-      const produtosNormalizados = data.map(item => {
-        const produto = {};
+      // Normalizar novos dados
+      const produtosNormalizados = normalizeProductData(data);
 
-        produto.item_id = item.item_id || item.id || item.codigo || item.cod || '';
-        produto.descricao = item.descricao || item.nome || '';
-        produto.fornecedor_id = item.fornecedor_id || item.fornecedor || 0;
-        produto.situacao = item.ativo || 'A';
-
-        for (let i = 1; i <= 15; i++) {
-          const lojaField = `loja${i}`;
-          const value = parseFloat(item[lojaField] || item[`estoque_pdv${i}`] || 0);
-          produto[lojaField] = value;
-        }
-
-        produto.custo_final = parseFloat(item.custo_final || item.custo_venda || item.custo || 0);
-
-        for (let i = 1; i <= 4; i++) {
-          const vendaField = `venda${i}`;
-          produto[vendaField] = parseFloat(item[vendaField] || item[`valor_venda${i}`] || 0);
-        }
-
-        return produto;
-      });
-
-      // Filtrar itens duplicados
+      // Filtrar duplicados
       const produtosExistentesIds = new Set(produtos.map(p => p.item_id?.toString()));
       const novosProdutos = produtosNormalizados.filter(produto => {
         const id = produto.item_id?.toString();
         return id && !produtosExistentesIds.has(id);
       });
-
-      console.log(`${data.length} itens recebidos, ${novosProdutos.length} novos produtos (${data.length - novosProdutos.length} duplicados)`);
 
       if (novosProdutos.length > 0) {
         const newProdutos = [...produtos, ...novosProdutos];
@@ -347,15 +311,13 @@ const ProdutoList = ({ searchParams }) => {
         }
 
         setPage(nextPage);
-        console.log(`Total de produtos agora: ${newProdutos.length}`);
+        console.log(`✅ ${novosProdutos.length} novos produtos adicionados`);
       } else {
-        console.log('Nenhum produto novo encontrado, parando carregamento');
         setHasMore(false);
       }
 
     } catch (err) {
-      console.error('Erro ao carregar mais produtos:', err);
-      setError('Erro ao carregar mais produtos.');
+      console.error('❌ Erro ao carregar mais produtos:', err);
       setHasMore(false);
     } finally {
       setLoadingMore(false);
@@ -367,20 +329,16 @@ const ProdutoList = ({ searchParams }) => {
     fetchInitialProdutos();
   }, [fetchInitialProdutos]);
 
-  // Configure o scroll infinito - CORRIGIDO
+  // Configure o scroll infinito
   useEffect(() => {
     const handleScroll = () => {
       if (!containerRef.current || !loadingRef.current || !hasMore || loadingMore) return;
 
       const container = containerRef.current;
-      const loading = loadingRef.current;
-
-      // Melhor detecção: quando estiver próximo ao final
       const containerHeight = container.clientHeight;
       const scrollTop = container.scrollTop;
       const scrollHeight = container.scrollHeight;
 
-      // Aciona quando faltam 200px para o final
       const nearBottom = scrollTop + containerHeight >= scrollHeight - 200;
 
       if (nearBottom) {
@@ -391,8 +349,6 @@ const ProdutoList = ({ searchParams }) => {
     const container = containerRef.current;
     if (container) {
       container.addEventListener('scroll', handleScroll, { passive: true });
-
-      // Também verificar imediatamente após carregar
       setTimeout(() => {
         handleScroll();
       }, 100);
@@ -405,7 +361,7 @@ const ProdutoList = ({ searchParams }) => {
     };
   }, [fetchMoreProdutos, hasMore, loadingMore]);
 
-  // Funções de navegação e atualização de produtos permanecem iguais
+  // Função de foco na célula atual
   const focusCurrentCell = useCallback(() => {
     if (filteredProdutos.length === 0) return;
 
@@ -425,36 +381,29 @@ const ProdutoList = ({ searchParams }) => {
     focusCurrentCell();
   }, [currentCell, focusCurrentCell]);
 
-  // Função para atualizar o produto selecionado quando a célula atual muda
+  // Atualizar produto selecionado
   useEffect(() => {
     if (filteredProdutos.length > 0 && currentCell.rowIndex >= 0 && currentCell.rowIndex < filteredProdutos.length) {
       setSelectedProduct(filteredProdutos[currentCell.rowIndex]);
     }
   }, [currentCell, filteredProdutos]);
 
-  // Função otimizada para navegação por teclado
+  // Navegação por teclado
   const handleKeyNavigation = (direction, rowIndex, colIndex) => {
-    // Cache para otimização - evita recálculos desnecessários
     const maxRow = filteredProdutos.length - 1;
     const maxCol = columns.length - 1;
 
-    // Cálculo direto de novas coordenadas
     let newRowIndex = rowIndex;
     let newColIndex = colIndex;
 
     switch (direction) {
       case 'up':
-        // Movimento simples para cima, sem lógica complexa
         newRowIndex = Math.max(0, rowIndex - 1);
         break;
 
       case 'down':
-        // Movimento simples para baixo, com verificação de carregamento
         newRowIndex = Math.min(maxRow, rowIndex + 1);
-
-        // Se estiver próximo ao final, aciona carregamento assíncrono
         if (newRowIndex > maxRow - 3 && hasMore && !loadingMore) {
-          // Usar setTimeout para não bloquear a navegação
           setTimeout(() => {
             if (hasMore && !loadingMore) {
               fetchMoreProdutos();
@@ -464,10 +413,7 @@ const ProdutoList = ({ searchParams }) => {
         break;
 
       case 'left': {
-        // Movimento para célula editável à esquerda
         let foundEditableCell = false;
-
-        // Começando da coluna atual, procura à esquerda
         for (let col = colIndex - 1; col >= 0; col--) {
           if (columns[col].editable) {
             newColIndex = col;
@@ -475,12 +421,8 @@ const ProdutoList = ({ searchParams }) => {
             break;
           }
         }
-
-        // Se não encontrou na linha atual, vai para a linha anterior
         if (!foundEditableCell && rowIndex > 0) {
           newRowIndex = rowIndex - 1;
-
-          // Procura da direita para a esquerda na linha anterior
           for (let col = maxCol; col >= 0; col--) {
             if (columns[col].editable) {
               newColIndex = col;
@@ -492,10 +434,7 @@ const ProdutoList = ({ searchParams }) => {
       }
 
       case 'right': {
-        // Movimento para célula editável à direita
         let foundEditableCell = false;
-
-        // Começando da coluna atual, procura à direita
         for (let col = colIndex + 1; col <= maxCol; col++) {
           if (columns[col].editable) {
             newColIndex = col;
@@ -503,12 +442,8 @@ const ProdutoList = ({ searchParams }) => {
             break;
           }
         }
-
-        // Se não encontrou na linha atual, vai para a próxima linha
         if (!foundEditableCell && rowIndex < maxRow) {
           newRowIndex = rowIndex + 1;
-
-          // Procura da esquerda para a direita na próxima linha
           for (let col = 0; col <= maxCol; col++) {
             if (columns[col].editable) {
               newColIndex = col;
@@ -520,15 +455,12 @@ const ProdutoList = ({ searchParams }) => {
       }
     }
 
-    // Atualiza a célula atual com coordenadas calculadas
     setCurrentCell({ rowIndex: newRowIndex, colIndex: newColIndex });
 
-    // Atualiza o produto selecionado mostrado na barra de status
     if (newRowIndex >= 0 && newRowIndex < filteredProdutos.length) {
       setSelectedProduct(filteredProdutos[newRowIndex]);
     }
 
-    // Foco imediato para uma experiência mais responsiva
     setTimeout(() => {
       const cellId = `cell-${newRowIndex}-${newColIndex}`;
       const cell = document.getElementById(cellId);
@@ -536,7 +468,6 @@ const ProdutoList = ({ searchParams }) => {
     }, 0);
   };
 
-  // Função para lidar com o hover do mouse nas linhas e atualizar o produto selecionado
   const handleRowMouseEnter = (produto) => {
     setSelectedProduct(produto);
   };
@@ -544,22 +475,19 @@ const ProdutoList = ({ searchParams }) => {
   // Função para atualizar um produto
   const handleCellChange = async (id, field, value) => {
     try {
-      // Encontra o produto a ser atualizado
       const produtoIndex = produtos.findIndex(p =>
         (p.item_id?.toString() || p.id?.toString()) === id.toString()
       );
 
       if (produtoIndex === -1) return;
 
-      // Cria uma cópia do produto com o campo atualizado
       const produtoAtualizado = { ...produtos[produtoIndex], [field]: value };
 
-      // Atualiza o estado localmente primeiro (optimistic update)
+      // Atualização otimista
       const produtosAtualizados = [...produtos];
       produtosAtualizados[produtoIndex] = produtoAtualizado;
       setProdutos(produtosAtualizados);
 
-      // Atualiza também os produtos filtrados
       const filteredIndex = filteredProdutos.findIndex(p =>
         (p.item_id?.toString() || p.id?.toString()) === id.toString()
       );
@@ -570,52 +498,35 @@ const ProdutoList = ({ searchParams }) => {
         setFilteredProdutos(filteredAtualizados);
       }
 
-      // Se o produto atualizado é o que está selecionado, atualize-o também
       if (selectedProduct && selectedProduct.item_id.toString() === id.toString()) {
         setSelectedProduct(produtoAtualizado);
       }
 
-      // Prepara dados para enviar ao backend com mapeamento correto dos campos
+      // Mapear campos do frontend para backend
       const dadosParaEnviar = {};
 
-      // Mapear situacao para ativo
       if (field === 'situacao') {
         dadosParaEnviar.ativo = value === '' ? 'A' : value;
-      }
-      // Mapear campos de loja para estoque_pdvX
-      else if (field.startsWith('loja')) {
+      } else if (field.startsWith('loja')) {
         const lojaNumero = field.replace('loja', '');
         dadosParaEnviar[`estoque_pdv${lojaNumero}`] = value === '' ? 0 : parseFloat(value);
-      }
-      // Mapear preços de venda
-      else if (field.startsWith('venda')) {
+      } else if (field.startsWith('venda')) {
         const vendaNumero = field.replace('venda', '');
         dadosParaEnviar[`valor_venda${vendaNumero}`] = value === '' ? 0 : parseFloat(value);
-      }
-      // Mapear custo final
-      else if (field === 'custo_final') {
+      } else if (field === 'custo_final') {
         dadosParaEnviar.custo_venda = value === '' ? 0 : parseFloat(value);
-      }
-      // Outros campos
-      else {
+      } else {
         dadosParaEnviar[field] = value;
       }
 
-      // Garantir que campos numéricos não sejam strings vazias
-      if (typeof dadosParaEnviar[field] === 'string' && dadosParaEnviar[field] === '' &&
-        columns.find(col => col.id === field)?.type === 'number') {
-        dadosParaEnviar[field] = 0;
-      }
-
-      // Tenta enviar atualização para o backend
       try {
         await axios.put(`/api/produtos/${id}`, dadosParaEnviar);
-        console.log(`Produto ${id} atualizado com sucesso:`, dadosParaEnviar);
+        console.log(`✅ Produto ${id} atualizado:`, dadosParaEnviar);
       } catch (error) {
-        console.error('Erro ao atualizar na API:', error);
+        console.error('❌ Erro ao atualizar na API:', error);
         setError(`Erro ao atualizar o produto: ${error.message}`);
 
-        // Reverter mudanças locais em caso de erro
+        // Reverter mudanças
         if (produtoIndex !== -1) {
           const produtosRevertidos = [...produtos];
           produtosRevertidos[produtoIndex] = produtos[produtoIndex];
@@ -634,47 +545,36 @@ const ProdutoList = ({ searchParams }) => {
       }
 
     } catch (err) {
-      console.error('Erro ao atualizar produto:', err);
+      console.error('❌ Erro ao atualizar produto:', err);
       setError('Erro ao atualizar o produto. Tente novamente.');
     }
   };
 
-  // Calculamos o tabIndex para permitir navegação por TAB
   const getTabIndex = (rowIndex, colIndex) => {
-    // Pulamos o ID (não editável) com +1
     const editableColIndex = colIndex > 0 ? colIndex : 0;
-    // Cálculo base: (linha * número de colunas) + coluna + 100
-    // Adicionamos 100 para não interferir com outros elementos da página
     return (rowIndex * columns.length) + editableColIndex + 100;
   };
 
-  // Formatar valor numérico para exibição
   const formatValue = (value, column) => {
     if (value === null || value === undefined) return '';
 
     if (column.type === 'number') {
-      // Converter para número
       const numValue = typeof value === 'string' ? parseFloat(value) : value;
 
-      // Para colunas de lojas - sem decimais
       if (column.noDecimals) {
         return Math.floor(numValue).toString();
       }
 
-      // Se for uma coluna que deve ser truncada (custo_final, venda1-4)
       if (column.truncate) {
-        // Trunca para 2 casas decimais
         return numValue.toFixed(2);
       }
 
-      // Para outras colunas numéricas, usar o formato padrão
       return numValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     return value.toString();
   };
 
-  // Determinar se mostrar o indicador de "sem mais produtos"
   const showNoMoreData = !hasMore && !loadingMore && filteredProdutos.length > 0;
 
   if (loading && filteredProdutos.length === 0) return <div className="loading">Carregando produtos...</div>;
@@ -702,13 +602,8 @@ const ProdutoList = ({ searchParams }) => {
                 onMouseEnter={() => handleRowMouseEnter(produto)}
               >
                 {columns.map((column, colIndex) => {
-                  // Obter valor do produto para esta coluna
                   const rawValue = produto[column.id];
-
-                  // Formatar valor para exibição
                   const displayValue = formatValue(rawValue, column);
-
-                  // Valor original para edição
                   const editValue = rawValue !== undefined ? rawValue.toString() : '';
 
                   return (
@@ -738,7 +633,6 @@ const ProdutoList = ({ searchParams }) => {
           </tbody>
         </table>
 
-        {/* Elemento observado para carregar mais itens */}
         <div
           ref={loadingRef}
           className="loading-more"
@@ -747,7 +641,6 @@ const ProdutoList = ({ searchParams }) => {
           {loadingMore ? 'Carregando mais produtos...' : ''}
         </div>
 
-        {/* Indicador de fim da lista */}
         {showNoMoreData && (
           <div className="end-of-list">
             Não há mais produtos para carregar.
@@ -755,7 +648,6 @@ const ProdutoList = ({ searchParams }) => {
         )}
       </div>
 
-      {/* Barra de status no rodapé */}
       <div className="status-bar">
         {selectedProduct ? (
           <>
