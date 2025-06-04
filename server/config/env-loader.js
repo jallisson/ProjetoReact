@@ -1,48 +1,76 @@
-// server/config/env-loader.js
-// Carregador de ambiente robusto que força o carregamento correto
+// server/config/env-loader-render.js
+// Versão otimizada para Render que usa variáveis de ambiente do sistema
 
 const fs = require('fs');
 const path = require('path');
 
-class EnvLoader {
+class RenderEnvLoader {
   constructor() {
     this.loaded = false;
     this.config = {};
   }
 
-  // Força o carregamento limpo das variáveis
   forceLoad() {
     if (this.loaded) {
       return this.config;
     }
 
     console.log('🔄 Carregando configurações de ambiente...');
+    console.log('🌍 Ambiente detectado:', process.env.NODE_ENV || 'development');
+    console.log('🏠 Render Environment:', process.env.RENDER ? 'SIM' : 'NÃO');
 
-    // 1. Limpar variáveis de ambiente relacionadas ao DB
-    this.clearDbEnvVars();
-
-    // 2. Encontrar e ler o arquivo .env correto
-    const envPath = this.findEnvFile();
-    
-    if (!envPath) {
-      console.error('❌ Arquivo .env não encontrado!');
-      return this.getDefaultConfig();
+    // No Render, usar variáveis de ambiente do sistema
+    if (process.env.RENDER) {
+      console.log('🚀 Executando no Render - usando variáveis de ambiente do sistema');
+      this.config = this.loadFromSystemEnv();
+    } else {
+      // Desenvolvimento local - tentar carregar .env
+      console.log('💻 Executando localmente - procurando arquivo .env');
+      this.clearDbEnvVars();
+      const envPath = this.findEnvFile();
+      
+      if (envPath) {
+        this.config = this.parseEnvFile(envPath);
+      } else {
+        console.log('⚠️ Arquivo .env não encontrado, tentando variáveis de ambiente do sistema');
+        this.config = this.loadFromSystemEnv();
+      }
     }
 
-    // 3. Carregar e parsear o arquivo .env manualmente
-    this.config = this.parseEnvFile(envPath);
-
-    // 4. Definir as variáveis no process.env (sobrescrevendo qualquer cache)
+    // Definir as variáveis no process.env
     this.setProcessEnv(this.config);
 
-    // 5. Validar configuração
+    // Validar configuração
     this.validateConfig();
 
     this.loaded = true;
     return this.config;
   }
 
-  // Limpa variáveis de ambiente relacionadas ao banco
+  // Carregar do sistema de variáveis de ambiente (Render)
+  loadFromSystemEnv() {
+    const config = {
+      DB_HOST: process.env.DB_HOST || 'localhost',
+      DB_USER: process.env.DB_USER || 'root',
+      DB_PASSWORD: process.env.DB_PASSWORD || '',
+      DB_NAME: process.env.DB_NAME || 'gerenciamento_produtos',
+      DB_PORT: process.env.DB_PORT || '3306',
+      PORT: process.env.PORT || '5000'
+    };
+
+    console.log('📊 Variáveis de ambiente do sistema:');
+    Object.keys(config).forEach(key => {
+      const value = config[key];
+      const displayValue = key.includes('PASSWORD') ? 
+        (value ? '*'.repeat(value.length) : 'VAZIO') : 
+        value;
+      console.log(`   ${key}: ${displayValue} ${process.env[key] ? '✅' : '❌'}`);
+    });
+
+    return config;
+  }
+
+  // Limpar variáveis de ambiente relacionadas ao DB
   clearDbEnvVars() {
     const dbVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'DB_PORT', 'PORT'];
     dbVars.forEach(varName => {
@@ -51,13 +79,13 @@ class EnvLoader {
     console.log('🧹 Variáveis de ambiente DB limpas');
   }
 
-  // Encontra o arquivo .env correto
+  // Encontra o arquivo .env correto (desenvolvimento)
   findEnvFile() {
     const possiblePaths = [
-      path.join(__dirname, '..', '.env'),           // server/.env
-      path.join(__dirname, '..', '..', '.env'),     // projeto/.env
-      path.join(process.cwd(), '.env'),             // current directory
-      path.join(process.cwd(), 'server', '.env')    // current/server/.env
+      path.join(__dirname, '..', '.env'),
+      path.join(__dirname, '..', '..', '.env'),
+      path.join(process.cwd(), '.env'),
+      path.join(process.cwd(), 'server', '.env')
     ];
 
     console.log('🔍 Procurando arquivo .env em:');
@@ -71,10 +99,11 @@ class EnvLoader {
       }
     }
 
+    console.log('❌ Arquivo .env não encontrado!');
     return null;
   }
 
-  // Parse manual do arquivo .env (mais confiável que dotenv)
+  // Parse manual do arquivo .env
   parseEnvFile(envPath) {
     try {
       const content = fs.readFileSync(envPath, 'utf8');
@@ -85,7 +114,6 @@ class EnvLoader {
       content.split('\n').forEach((line, index) => {
         line = line.trim();
         
-        // Ignorar linhas vazias e comentários
         if (!line || line.startsWith('#')) {
           if (line.startsWith('#')) {
             console.log(`   ${index + 1}: ${line} (comentário)`);
@@ -93,7 +121,6 @@ class EnvLoader {
           return;
         }
 
-        // Parse da linha KEY=VALUE
         const equalIndex = line.indexOf('=');
         if (equalIndex === -1) {
           console.log(`   ${index + 1}: ${line} (formato inválido)`);
@@ -102,8 +129,6 @@ class EnvLoader {
 
         const key = line.substring(0, equalIndex).trim();
         const value = line.substring(equalIndex + 1).trim();
-
-        // Remover aspas se existirem
         const cleanValue = value.replace(/^["']|["']$/g, '');
         
         config[key] = cleanValue;
@@ -113,7 +138,7 @@ class EnvLoader {
       return config;
     } catch (error) {
       console.error(`❌ Erro ao ler arquivo .env: ${error.message}`);
-      return this.getDefaultConfig();
+      return this.loadFromSystemEnv();
     }
   }
 
@@ -123,19 +148,6 @@ class EnvLoader {
       process.env[key] = config[key];
       console.log(`🔧 ${key} definido no process.env`);
     });
-  }
-
-  // Configuração padrão como fallback
-  getDefaultConfig() {
-    console.log('⚠️  Usando configuração padrão (localhost)');
-    return {
-      DB_HOST: 'localhost',
-      DB_USER: 'root',
-      DB_PASSWORD: '',
-      DB_NAME: 'gerenciamento_produtos',
-      DB_PORT: '3306',
-      PORT: '5000'
-    };
   }
 
   // Valida se a configuração está completa
@@ -154,21 +166,7 @@ class EnvLoader {
     console.log(`   User: ${process.env.DB_USER}`);
     console.log(`   Database: ${process.env.DB_NAME}`);
     console.log(`   Password: ${process.env.DB_PASSWORD ? '*'.repeat(process.env.DB_PASSWORD.length) : 'VAZIO'}`);
-  }
-
-  // Método para recarregar configuração (útil para desenvolvimento)
-  reload() {
-    this.loaded = false;
-    this.config = {};
-    return this.forceLoad();
-  }
-
-  // Getter para a configuração atual
-  getConfig() {
-    if (!this.loaded) {
-      return this.forceLoad();
-    }
-    return this.config;
+    console.log(`   Port: ${process.env.PORT}`);
   }
 
   // Método para testar conectividade básica
@@ -179,7 +177,7 @@ class EnvLoader {
 
     return new Promise((resolve) => {
       const socket = new net.Socket();
-      const timeout = 5000;
+      const timeout = 10000; // 10 segundos para produção
 
       socket.setTimeout(timeout);
       
@@ -204,10 +202,23 @@ class EnvLoader {
       socket.connect(port, host);
     });
   }
+
+  reload() {
+    this.loaded = false;
+    this.config = {};
+    return this.forceLoad();
+  }
+
+  getConfig() {
+    if (!this.loaded) {
+      return this.forceLoad();
+    }
+    return this.config;
+  }
 }
 
 // Instância singleton
-const envLoader = new EnvLoader();
+const envLoader = new RenderEnvLoader();
 
 // Carregar imediatamente
 envLoader.forceLoad();

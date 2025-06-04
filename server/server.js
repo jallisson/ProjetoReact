@@ -4,14 +4,13 @@ const { pool, testConnection } = require('./config/db');
 const path = require('path');
 
 const app = express();
-// Definindo explicitamente a porta 5000
 const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Teste de conexão na inicialização (agora funciona!)
+// Teste de conexão na inicialização
 testConnection()
   .then(connected => {
     if (!connected) {
@@ -24,7 +23,6 @@ testConnection()
 // Middleware para validar tipos de dados
 const validateData = (req, res, next) => {
   if (req.method === 'PUT' || req.method === 'POST') {
-    // Campos numéricos que devem ser validados
     const numericFields = [
       'fornecedor_id', 'estoque_pdv1', 'estoque_pdv2', 'estoque_pdv3',
       'estoque_pdv4', 'estoque_pdv5', 'estoque_pdv6', 'estoque_pdv7',
@@ -35,12 +33,10 @@ const validateData = (req, res, next) => {
 
     const invalidFields = [];
 
-    // Garantir que o campo 'ativo' não seja nulo
     if (req.body.ativo === null || req.body.ativo === undefined) {
       req.body.ativo = 'A';
     }
 
-    // Validar e converter campos numéricos
     numericFields.forEach(field => {
       if (req.body[field] !== undefined) {
         if (req.body[field] === null || req.body[field] === '') {
@@ -62,20 +58,17 @@ const validateData = (req, res, next) => {
   next();
 };
 
-// Aplicar middleware de validação
 app.use('/api/produtos/:id', validateData);
 app.use('/api/produtos', validateData);
 
 // Rota básica de produtos com paginação
 app.get('/api/produtos', async (req, res) => {
   try {
-    // Parâmetros de paginação
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 25;
     const offset = (page - 1) * limit;
     const sortDirection = req.query.sort === 'desc' ? 'DESC' : 'ASC';
 
-    // Consulta paginada otimizada para sua estrutura
     const [rows] = await pool.query(`
       SELECT 
         item_id, descricao, fornecedor_id, ativo,
@@ -88,7 +81,6 @@ app.get('/api/produtos', async (req, res) => {
       LIMIT ? OFFSET ?
     `, [limit, offset]);
 
-    // Contar total de registros
     const [countResult] = await pool.query('SELECT COUNT(*) as total FROM itens');
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
@@ -108,7 +100,7 @@ app.get('/api/produtos', async (req, res) => {
   }
 });
 
-// Rota de pesquisa otimizada
+// Rota de pesquisa com paginação
 app.get('/api/produtos/search', async (req, res) => {
   try {
     const termo = req.query.termo || '';
@@ -122,7 +114,6 @@ app.get('/api/produtos/search', async (req, res) => {
     let whereClause = '';
     let queryParams = [];
 
-    // Construir cláusula WHERE
     if (campo === 'descricao' && modo === 'maior_igual') {
       whereClause = 'WHERE descricao >= ?';
       queryParams.push(termo.toUpperCase());
@@ -136,12 +127,10 @@ app.get('/api/produtos/search', async (req, res) => {
       whereClause = 'WHERE fornecedor_id = ?';
       queryParams.push(parseInt(termo) || 0);
     } else {
-      // Padrão: pesquisa que contém
       whereClause = 'WHERE descricao LIKE ? OR item_id LIKE ?';
       queryParams.push(`%${termo}%`, `%${termo}%`);
     }
 
-    // Query principal
     const mainQuery = `
       SELECT 
         item_id, descricao, fornecedor_id, ativo,
@@ -157,7 +146,6 @@ app.get('/api/produtos/search', async (req, res) => {
 
     const [rows] = await pool.query(mainQuery, [...queryParams, limit, offset]);
 
-    // Contar total
     const countQuery = `SELECT COUNT(*) as total FROM itens ${whereClause}`;
     const [countResult] = await pool.query(countQuery, queryParams);
     const totalItems = countResult[0].total;
@@ -183,7 +171,6 @@ app.put('/api/produtos/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Se estamos atualizando um campo específico
     if (Object.keys(req.body).length === 1) {
       const fieldName = Object.keys(req.body)[0];
       const fieldValue = req.body[fieldName];
@@ -197,7 +184,6 @@ app.put('/api/produtos/:id', async (req, res) => {
         return res.status(404).json({ message: 'Produto não encontrado' });
       }
     } else {
-      // Atualização de múltiplos campos
       const [currentProduct] = await pool.query(
         `SELECT * FROM itens WHERE item_id = ?`,
         [id]
@@ -207,14 +193,12 @@ app.put('/api/produtos/:id', async (req, res) => {
         return res.status(404).json({ message: 'Produto não encontrado' });
       }
 
-      // Mesclar dados
       const mergedData = {
         ...currentProduct[0],
         ...req.body,
         ativo: req.body.ativo || currentProduct[0].ativo || 'A'
       };
 
-      // Atualizar todos os campos
       const [result] = await pool.query(
         `UPDATE itens 
          SET descricao = ?, 
@@ -241,7 +225,6 @@ app.put('/api/produtos/:id', async (req, res) => {
       );
     }
 
-    // Retornar produto atualizado
     const [updatedProduct] = await pool.query(`
       SELECT 
         item_id, descricao, fornecedor_id, ativo,
@@ -262,11 +245,20 @@ app.put('/api/produtos/:id', async (req, res) => {
 
 // Rota de teste
 app.get('/', (req, res) => {
-  res.send('🎉 API de Gerenciamento de Produtos funcionando!');
+  res.json({
+    message: '🎉 API de Gerenciamento de Produtos funcionando!',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    render: !!process.env.RENDER
+  });
 });
 
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`🌍 Acesse: http://localhost:${PORT}`);
+  
+  if (process.env.RENDER) {
+    console.log('🎉 Deploy no Render concluído com sucesso!');
+  }
 });
