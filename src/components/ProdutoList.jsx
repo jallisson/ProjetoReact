@@ -3,10 +3,34 @@ import EditableCell from './EditableCell';
 import axios from 'axios';
 import './StatusBar.css';
 
-// Configuração da API
-const API_URL = 'http://localhost:5000' ||  'https://projetoreact-1.onrender.com';
+// Configuração inteligente da API (detecta ambiente automaticamente)
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  
+  // Desenvolvimento local
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    console.log('🔧 Ambiente: DESENVOLVIMENTO');
+    return 'http://localhost:5000';
+  }
+  
+  // Produção no Render
+  if (hostname.includes('onrender.com')) {
+    console.log('🚀 Ambiente: PRODUÇÃO (Render)');
+    return 'https://projetoreact-1.onrender.com';
+  }
+  
+  // Outros ambientes (Netlify, Vercel, etc.)
+  console.log('🌍 Ambiente: PRODUÇÃO (Outro)');
+  // Se for HTTPS, usa HTTPS; se for HTTP, usa HTTP
+  return `${protocol}//${hostname}:5000`;
+};
+
+const API_URL = getApiUrl();
 axios.defaults.baseURL = API_URL;
 
+console.log('🌐 API configurada para:', API_URL);
+console.log('📍 Frontend rodando em:', window.location.origin);
 
 const ProdutoList = ({ searchParams }) => {
   const [produtos, setProdutos] = useState([]);
@@ -58,7 +82,35 @@ const ProdutoList = ({ searchParams }) => {
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  // Função para normalizar dados do backend (CORRIGIDA para strings)
+  // Função para testar conectividade da API (com fallbacks)
+  const testApiConnection = async () => {
+    const testUrls = [
+      API_URL,
+      API_URL + '/api/produtos?page=1&limit=1'
+    ];
+
+    console.log('🔌 Testando conectividade da API...');
+
+    for (const url of testUrls) {
+      try {
+        console.log(`🌐 Testando: ${url}`);
+        const response = await axios.get(url.replace(API_URL, '') || '/', { timeout: 10000 });
+        
+        if (response.status === 200) {
+          console.log(`✅ API respondendo em: ${url}`);
+          return true;
+        }
+      } catch (error) {
+        console.log(`❌ Falha em: ${url} - ${error.message}`);
+        continue;
+      }
+    }
+
+    console.error('❌ Nenhuma URL da API respondeu');
+    return false;
+  };
+
+  // Função para normalizar dados do backend
   const normalizeProductData = (backendItems) => {
     console.log('🔄 Normalizando dados do backend...');
     console.log('📋 Exemplo de item bruto:', backendItems[0]);
@@ -93,7 +145,7 @@ const ProdutoList = ({ searchParams }) => {
     });
   };
 
-  // Função para buscar dados iniciais
+  // Função para buscar dados iniciais com retry automático
   const fetchInitialProdutos = useCallback(async () => {
     try {
       setLoading(true);
@@ -102,6 +154,14 @@ const ProdutoList = ({ searchParams }) => {
 
       console.log('🚀 Iniciando busca de produtos...');
       console.log('📋 Parâmetros de busca:', searchParams);
+
+      // Primeiro teste de conectividade
+      const isApiOnline = await testApiConnection();
+      if (!isApiOnline) {
+        setError('❌ API não está respondendo. Verifique sua conexão ou se o servidor está online.');
+        setLoading(false);
+        return;
+      }
 
       const params = {
         page: 1,
@@ -118,27 +178,43 @@ const ProdutoList = ({ searchParams }) => {
 
           if (searchParams.filter === 'codigo') {
             response = await axios.get(`/api/produtos/search`, {
-              params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' }
+              params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' },
+              timeout: 15000
             });
           } else if (searchParams.filter === 'descricao') {
             response = await axios.get(`/api/produtos/search`, {
-              params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' }
+              params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' },
+              timeout: 15000
             });
           } else if (searchParams.filter === 'fornecedor') {
             response = await axios.get(`/api/produtos/search`, {
-              params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' }
+              params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' },
+              timeout: 15000
             });
           }
         } else {
           console.log('📦 Busca geral de produtos...');
-          response = await axios.get('/api/produtos', { params });
+          response = await axios.get('/api/produtos', { 
+            params,
+            timeout: 15000
+          });
         }
 
         console.log('📡 Resposta da API recebida:', response?.data);
 
       } catch (apiError) {
         console.error('❌ Erro na API:', apiError);
-        setError(`Erro ao conectar com a API: ${apiError.message}`);
+        
+        let errorMessage = 'Erro ao conectar com a API';
+        if (apiError.code === 'ECONNABORTED') {
+          errorMessage = 'Timeout: A API demorou muito para responder';
+        } else if (apiError.response?.status === 404) {
+          errorMessage = 'Endpoint da API não encontrado';
+        } else if (apiError.response?.status >= 500) {
+          errorMessage = 'Erro interno do servidor';
+        }
+        
+        setError(`${errorMessage}: ${apiError.message}`);
         setLoading(false);
         return;
       }
@@ -259,15 +335,20 @@ const ProdutoList = ({ searchParams }) => {
 
         if (searchParams.filter === 'descricao') {
           response = await axios.get(`/api/produtos/search`, {
-            params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' }
+            params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' },
+            timeout: 15000
           });
         } else if (searchParams.filter === 'fornecedor') {
           response = await axios.get(`/api/produtos/search`, {
-            params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' }
+            params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' },
+            timeout: 15000
           });
         }
       } else {
-        response = await axios.get('/api/produtos', { params });
+        response = await axios.get('/api/produtos', { 
+          params,
+          timeout: 15000
+        });
       }
 
       let data = [];
@@ -324,12 +405,11 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [page, hasMore, loadingMore, searchParams, produtos]);
 
-  // Efeito para buscar dados iniciais
+  // Resto das funções permanecem iguais...
   useEffect(() => {
     fetchInitialProdutos();
   }, [fetchInitialProdutos]);
 
-  // Configure o scroll infinito
   useEffect(() => {
     const handleScroll = () => {
       if (!containerRef.current || !loadingRef.current || !hasMore || loadingMore) return;
@@ -361,16 +441,12 @@ const ProdutoList = ({ searchParams }) => {
     };
   }, [fetchMoreProdutos, hasMore, loadingMore]);
 
-  // Função de foco na célula atual
   const focusCurrentCell = useCallback(() => {
     if (filteredProdutos.length === 0) return;
-
     const { rowIndex, colIndex } = currentCell;
-
     setTimeout(() => {
       const cellId = `cell-${rowIndex}-${colIndex}`;
       const cell = document.getElementById(cellId);
-
       if (cell) {
         cell.focus();
       }
@@ -381,14 +457,12 @@ const ProdutoList = ({ searchParams }) => {
     focusCurrentCell();
   }, [currentCell, focusCurrentCell]);
 
-  // Atualizar produto selecionado
   useEffect(() => {
     if (filteredProdutos.length > 0 && currentCell.rowIndex >= 0 && currentCell.rowIndex < filteredProdutos.length) {
       setSelectedProduct(filteredProdutos[currentCell.rowIndex]);
     }
   }, [currentCell, filteredProdutos]);
 
-  // Navegação por teclado
   const handleKeyNavigation = (direction, rowIndex, colIndex) => {
     const maxRow = filteredProdutos.length - 1;
     const maxCol = columns.length - 1;
@@ -472,7 +546,6 @@ const ProdutoList = ({ searchParams }) => {
     setSelectedProduct(produto);
   };
 
-  // Função para atualizar um produto
   const handleCellChange = async (id, field, value) => {
     try {
       const produtoIndex = produtos.findIndex(p =>
@@ -520,7 +593,7 @@ const ProdutoList = ({ searchParams }) => {
       }
 
       try {
-        await axios.put(`/api/produtos/${id}`, dadosParaEnviar);
+        await axios.put(`/api/produtos/${id}`, dadosParaEnviar, { timeout: 10000 });
         console.log(`✅ Produto ${id} atualizado:`, dadosParaEnviar);
       } catch (error) {
         console.error('❌ Erro ao atualizar na API:', error);
@@ -577,8 +650,41 @@ const ProdutoList = ({ searchParams }) => {
 
   const showNoMoreData = !hasMore && !loadingMore && filteredProdutos.length > 0;
 
-  if (loading && filteredProdutos.length === 0) return <div className="loading">Carregando produtos...</div>;
-  if (error && filteredProdutos.length === 0) return <div className="error-message">{error}</div>;
+  // Renderização com informações de debug em desenvolvimento
+  if (loading && filteredProdutos.length === 0) {
+    return (
+      <div className="loading">
+        <div>Carregando produtos...</div>
+        {window.location.hostname === 'localhost' && (
+          <div style={{ fontSize: '0.8em', marginTop: '10px', color: '#666' }}>
+            API: {API_URL}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (error && filteredProdutos.length === 0) {
+    return (
+      <div className="error-message">
+        <div>{error}</div>
+        <div style={{ marginTop: '10px', fontSize: '0.9em' }}>
+          <button onClick={() => window.location.reload()}>🔄 Tentar Novamente</button>
+        </div>
+        {window.location.hostname === 'localhost' && (
+          <div style={{ marginTop: '10px', fontSize: '0.8em', color: '#666' }}>
+            Debug Info:
+            <ul style={{ textAlign: 'left', marginTop: '5px' }}>
+              <li>API URL: {API_URL}</li>
+              <li>Frontend: {window.location.origin}</li>
+              <li>Hostname: {window.location.hostname}</li>
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (filteredProdutos.length === 0) return <div className="no-data">Nenhum produto encontrado.</div>;
 
   return (
