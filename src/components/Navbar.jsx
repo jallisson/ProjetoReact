@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './Navbar.css'
 import AboutModal from './AboutModal'
+import ThemeToggle from './ThemeToggle'
 
 const Navbar = () => {
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
@@ -45,6 +46,8 @@ const Navbar = () => {
           </ul>
           
           <div className="navbar-actions">
+            <ThemeToggle />
+            
             <button className="user-profile" onClick={handleAboutClick}>
               <div className="user-avatar">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

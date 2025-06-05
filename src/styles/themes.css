@@ -1,0 +1,393 @@
+/* src/styles/themes.css */
+
+/* =============================================== */
+/* VARIÁVEIS DE TEMA - MODO CLARO (PADRÃO)       */
+/* =============================================== */
+
+:root {
+  /* Cores principais */
+  --bg-primary: #f4f4f4;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f8f9fa;
+  --bg-accent: rgba(52, 152, 219, 0.1);
+  
+  /* Texto */
+  --text-primary: #213547;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-inverse: #ffffff;
+  
+  /* Bordas */
+  --border-color: #dddddd;
+  --border-light: #eeeeee;
+  --border-focus: #3498db;
+  
+  /* Navbar */
+  --navbar-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --navbar-text: rgba(255, 255, 255, 0.9);
+  --navbar-hover: rgba(255, 255, 255, 0.15);
+  
+  /* Tabela */
+  --table-bg: #ffffff;
+  --table-header-bg: #f8f9fa;
+  --table-row-hover: rgba(52, 152, 219, 0.1);
+  --table-row-even: #f8f9fa;
+  --table-row-selected: rgba(76, 175, 80, 0.2);
+  --table-border: #eeeeee;
+  
+  /* Botões */
+  --btn-primary: #4caf50;
+  --btn-primary-hover: #388e3c;
+  --btn-primary-text: #ffffff;
+  
+  /* Status bar */
+  --status-bg: #282c34;
+  --status-text: #ffffff;
+  --status-code-bg: #4caf50;
+  
+  /* Inputs */
+  --input-bg: #ffffff;
+  --input-border: #dddddd;
+  --input-focus: #3498db;
+  --input-text: #213547;
+  
+  /* Sombras */
+  --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 20px rgba(0, 0, 0, 0.1);
+  --shadow-heavy: 0 25px 50px rgba(0, 0, 0, 0.25);
+  
+  /* Scrollbar */
+  --scrollbar-track: #f1f1f1;
+  --scrollbar-thumb: #c1c1c1;
+  --scrollbar-thumb-hover: #a8a8a8;
+  
+  /* Cores de acento */
+  --accent-color: #667eea;
+  --success-color: #4caf50;
+  --warning-color: #ff9800;
+  --error-color: #f44336;
+  
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.2);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-backdrop: blur(10px);
+}
+
+/* =============================================== */
+/* VARIÁVEIS DE TEMA - MODO ESCURO               */
+/* =============================================== */
+
+[data-theme="dark"] {
+  /* Cores principais */
+  --bg-primary: #0f0f23;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #16213e;
+  --bg-accent: rgba(102, 126, 234, 0.2);
+  
+  /* Texto */
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-inverse: #1f2937;
+  
+  /* Bordas */
+  --border-color: #374151;
+  --border-light: #4b5563;
+  --border-focus: #667eea;
+  
+  /* Navbar */
+  --navbar-bg: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+  --navbar-text: rgba(229, 231, 235, 0.9);
+  --navbar-hover: rgba(229, 231, 235, 0.15);
+  
+  /* Tabela */
+  --table-bg: #1a1a2e;
+  --table-header-bg: #16213e;
+  --table-row-hover: rgba(102, 126, 234, 0.1);
+  --table-row-even: #1e1e42;
+  --table-row-selected: rgba(102, 126, 234, 0.3);
+  --table-border: #374151;
+  
+  /* Botões */
+  --btn-primary: #667eea;
+  --btn-primary-hover: #5a67d8;
+  --btn-primary-text: #ffffff;
+  
+  /* Status bar */
+  --status-bg: #111827;
+  --status-text: #e5e7eb;
+  --status-code-bg: #667eea;
+  
+  /* Inputs */
+  --input-bg: #1f2937;
+  --input-border: #374151;
+  --input-focus: #667eea;
+  --input-text: #e5e7eb;
+  
+  /* Sombras */
+  --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-medium: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --shadow-heavy: 0 25px 50px rgba(0, 0, 0, 0.5);
+  
+  /* Scrollbar */
+  --scrollbar-track: #374151;
+  --scrollbar-thumb: #6b7280;
+  --scrollbar-thumb-hover: #9ca3af;
+  
+  /* Cores de acento */
+  --accent-color: #667eea;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+  
+  /* Glassmorphism */
+  --glass-bg: rgba(31, 41, 55, 0.3);
+  --glass-border: rgba(75, 85, 99, 0.3);
+  --glass-backdrop: blur(16px);
+}
+
+/* =============================================== */
+/* TRANSIÇÕES SUAVES PARA MUDANÇA DE TEMA       */
+/* =============================================== */
+
+* {
+  transition: 
+    background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Exceções para elementos que não precisam de transição */
+.produtos-table *,
+.cell-input,
+.editable-cell {
+  transition: none;
+}
+
+/* Re-aplicar transições específicas onde necessário */
+.produtos-table tr {
+  transition: background-color 0.2s ease;
+}
+
+.editable-cell {
+  transition: 
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* =============================================== */
+/* APLICAÇÃO DAS VARIÁVEIS                       */
+/* =============================================== */
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Containers principais */
+.app-container {
+  background-color: var(--bg-primary);
+}
+
+.content {
+  background-color: var(--bg-primary);
+}
+
+/* Navbar */
+.navbar {
+  background: var(--navbar-bg);
+}
+
+.navbar-brand,
+.nav-link,
+.user-profile {
+  color: var(--navbar-text);
+}
+
+.nav-link:hover,
+.user-profile:hover {
+  background: var(--navbar-hover);
+}
+
+/* Search container */
+.search-container {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-light);
+}
+
+.input-field {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--input-text);
+}
+
+.input-field:focus {
+  border-color: var(--input-focus);
+  outline-color: var(--input-focus);
+}
+
+/* Botões */
+.button,
+.green-button {
+  background-color: var(--btn-primary);
+  color: var(--btn-primary-text);
+  border-color: var(--btn-primary);
+}
+
+.button:hover,
+.green-button:hover {
+  background-color: var(--btn-primary-hover);
+}
+
+/* Tabela */
+.fixed-table-container {
+  background-color: var(--table-bg);
+  box-shadow: var(--shadow-light);
+}
+
+.produtos-table {
+  background-color: var(--table-bg);
+}
+
+.produtos-table th {
+  background-color: var(--table-header-bg);
+  color: var(--text-primary);
+  border-bottom-color: var(--border-color);
+}
+
+.produtos-table td {
+  border-bottom-color: var(--table-border);
+  color: var(--text-primary);
+}
+
+.produtos-table tr:hover {
+  background-color: var(--table-row-hover);
+}
+
+.produtos-table tr:nth-child(even) {
+  background-color: var(--table-row-even);
+}
+
+.produtos-table tr.highlighted {
+  background-color: var(--table-row-selected);
+  border-left-color: var(--accent-color);
+}
+
+/* Células editáveis */
+.editable-cell {
+  color: var(--text-primary);
+}
+
+.editable-cell:hover {
+  background-color: var(--bg-accent);
+  border-color: var(--border-focus);
+}
+
+.editable-cell:focus {
+  background-color: var(--bg-accent);
+  outline-color: var(--border-focus);
+}
+
+.cell-input {
+  background-color: var(--input-bg);
+  border-color: var(--input-focus);
+  color: var(--input-text);
+}
+
+/* Status bar */
+.status-bar {
+  background-color: var(--status-bg);
+  color: var(--status-text);
+  border-top-color: var(--border-color);
+}
+
+.status-code {
+  background-color: var(--status-code-bg);
+}
+
+/* Estados de carregamento e erro */
+.loading,
+.error-message,
+.no-data {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-light);
+}
+
+.loading-more,
+.end-of-list {
+  color: var(--text-secondary);
+  background-color: var(--bg-tertiary);
+  border-top-color: var(--border-light);
+}
+
+/* Scrollbar personalizada */
+.fixed-table-container::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.fixed-table-container::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
+.fixed-table-container::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Modal (se existir) */
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="dark"] .modal-overlay {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.modal-content {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-heavy);
+}
+
+.modal-header {
+  background: var(--navbar-bg);
+}
+
+/* Elementos de glassmorphism */
+.notification-btn,
+.user-profile {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  backdrop-filter: var(--glass-backdrop);
+}
+
+/* =============================================== */
+/* MELHORIAS PARA MODO ESCURO                    */
+/* =============================================== */
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] img {
+  opacity: 0.9;
+}
+
+[data-theme="dark"] .logo-icon {
+  background: var(--glass-bg);
+}
+
+/* Ajustes para melhor contraste no modo escuro */
+[data-theme="dark"] .produtos-table th {
+  border-bottom: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .search-container {
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .fixed-table-container {
+  border: 1px solid var(--border-color);
+}

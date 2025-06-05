@@ -1,7 +1,10 @@
 import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 import './AboutModal.css';
 
 const AboutModal = ({ isOpen, onClose }) => {
+  const { isDark } = useTheme();
+
   if (!isOpen) return null;
 
   const handleOverlayClick = (e) => {
@@ -54,7 +57,7 @@ const AboutModal = ({ isOpen, onClose }) => {
             <h4>🚀 Sobre o Sistema</h4>
             <p>
               Sistema moderno de gerenciamento de produtos desenvolvido com React e Node.js, 
-              com interface intuitiva para controle de estoque multi-loja.
+              com interface intuitiva para controle de estoque multi-loja e suporte a modo escuro.
             </p>
           </div>
           
@@ -67,6 +70,7 @@ const AboutModal = ({ isOpen, onClose }) => {
               <span className="tech-badge">MySQL</span>
               <span className="tech-badge">Vite</span>
               <span className="tech-badge">CSS3</span>
+              <span className="tech-badge">Dark Mode</span>
             </div>
           </div>
           
@@ -74,12 +78,24 @@ const AboutModal = ({ isOpen, onClose }) => {
             <h4>✨ Principais Features</h4>
             <ul className="features-list">
               <li>Interface responsiva e moderna</li>
+              <li>Modo escuro automático e manual</li>
               <li>Edição em tempo real</li>
               <li>Sistema de busca avançado</li>
               <li>Navegação por teclado</li>
               <li>Scroll infinito otimizado</li>
               <li>Controle para 15 lojas</li>
+              <li>Temas personalizáveis</li>
             </ul>
+          </div>
+          
+          <div className="info-section">
+            <h4>🌙 Modo {isDark ? 'Escuro' : 'Claro'} Ativo</h4>
+            <p>
+              {isDark 
+                ? 'Você está usando o modo escuro. Ideal para trabalhar em ambientes com pouca luz.' 
+                : 'Você está usando o modo claro. Use o toggle no navbar para alternar para o modo escuro.'
+              }
+            </p>
           </div>
           
           <div className="info-section">
@@ -114,9 +130,10 @@ const AboutModal = ({ isOpen, onClose }) => {
           
           <div className="version-info">
             <p>
-              <strong>Versão:</strong> 1.0.0 | 
+              <strong>Versão:</strong> 1.1.0 | 
               <strong> Build:</strong> {new Date().getFullYear()} |
-              <strong> React:</strong> 18.2.0
+              <strong> React:</strong> 18.2.0 |
+              <strong> Tema:</strong> {isDark ? 'Escuro' : 'Claro'}
             </p>
           </div>
         </div>
