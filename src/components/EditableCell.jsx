@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const EditableCell = ({ 
-  value, 
-  onSave, 
-  tabIndex, 
-  onKeyNavigation, 
-  rowIndex, 
-  colIndex, 
+const EditableCell = ({
+  value,
+  onSave,
+  tabIndex,
+  onKeyNavigation,
+  rowIndex,
+  colIndex,
   columnType = 'text',
-  id
+  id,
+  isFocused // NEW PROP
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(value || '');
@@ -22,22 +23,31 @@ const EditableCell = ({
     setOriginalValue(value || '');
   }, [value]);
 
+  // Manage focus for the cell itself when it becomes the currentCell
+  useEffect(() => {
+    if (isFocused && !isEditing) {
+      if (cellRef.current) {
+        cellRef.current.focus();
+      }
+    }
+  }, [isFocused, isEditing]);
+
   // Salvar alterações - com tratamento de vírgulas brasileiras
   const saveChanges = useCallback(() => {
     if (inputValue !== originalValue) {
       let valueToSave = inputValue;
-      
+
       // Para campos numéricos, converter vírgula para ponto
       if (columnType === 'number') {
         // Limpar formatação e converter vírgula para ponto
         const cleanValue = inputValue.toString()
           .replace(/[^\d,.\-]/g, '') // Remove tudo exceto dígitos, vírgula, ponto e sinal
           .replace(',', '.'); // Substitui vírgula por ponto
-        
+
         const numValue = parseFloat(cleanValue);
         valueToSave = isNaN(numValue) ? 0 : numValue;
       }
-      
+
       onSave(valueToSave);
     }
     setIsEditing(false);
@@ -55,11 +65,11 @@ const EditableCell = ({
   // Iniciar edição
   const startEditing = useCallback((initialValue = null) => {
     setIsEditing(true);
-    
+
     if (initialValue !== null) {
       setInputValue(initialValue);
     }
-    
+
     // Focar no input
     setTimeout(() => {
       if (inputRef.current) {
@@ -185,7 +195,7 @@ const EditableCell = ({
 
   // Renderizar célula normal
   return (
-    <div 
+    <div
       ref={cellRef}
       className="editable-cell"
       onClick={handleClick}
@@ -200,7 +210,10 @@ const EditableCell = ({
         userSelect: 'text',
         pointerEvents: 'auto',
         position: 'relative',
-        zIndex: 1
+        zIndex: 1,
+        // Add highlight style based on isFocused
+        backgroundColor: isFocused ? 'var(--highlight-bg-color, #e0f7fa)' : 'transparent',
+        border: isFocused ? '1px solid var(--highlight-border-color, #00bcd4)' : '1px solid transparent'
       }}
     >
       {value || ""}

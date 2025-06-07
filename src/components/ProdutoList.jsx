@@ -108,40 +108,56 @@ const ProdutoList = ({ searchParams }) => {
     };
   }, [scrollTop, containerHeight, filteredProdutos]);
 
-  // FUNÇÃO DE FORMATAÇÃO QUE FUNCIONOU
+  // FUNÇÃO DE FORMATAÇÃO (REVISADA)
   function formatarValor(valor, coluna) {
-    // Se for vazio ou nulo
+    // console.log(`[formatarValor] Valor recebido para ${coluna.id}:`, valor, `Tipo:`, typeof valor);
+
+    // Se for vazio, nulo ou indefinido, retorna string vazia
     if (valor === null || valor === undefined || valor === '') {
       return '';
     }
 
-    // Se for texto
+    // Se a coluna não é numérica, retorna o valor como string
     if (coluna.type !== 'number') {
       return String(valor);
     }
 
-    // Converter para número
+    // Tenta converter o valor para um número de ponto flutuante
+    // Isso é crucial caso o valor venha como string "115.237019"
     const numero = parseFloat(valor);
+
+    // Se a conversão resultar em NaN (Not a Number), retorna "0"
     if (isNaN(numero)) {
       return '0';
     }
 
-    // Se for inteiro (lojas)
-    if (coluna.isInteger) {
+    // Se a coluna for marcada como isInteger ou for o fornecedor_id, formata como inteiro
+    if (coluna.isInteger || coluna.id === 'fornecedor_id') {
       return Math.floor(numero).toString();
     }
 
-    // Se for decimal (custo e vendas)
+    // Se a coluna for marcada como isDecimal (custo_final, vendaX)
     if (coluna.isDecimal) {
-      return numero.toLocaleString('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
+      // Arredonda para 2 casas decimais e retorna uma string com ponto como separador
+      // Ex: 115.237019 -> "115.24"
+      let formatted = numero.toFixed(2);
+
+      // Substitui o ponto decimal por vírgula (padrão BR)
+      // Ex: "115.24" -> "115,24"
+      formatted = formatted.replace('.', ',');
+
+      // Adiciona separador de milhar (ponto) para números grandes
+      // Ex: "123456,78" -> "123.456,78"
+      formatted = formatted.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+
+      // console.log(`[formatarValor] Valor formatado para ${coluna.id}:`, formatted);
+      return formatted;
     }
 
-    // Fornecedor (inteiro)
-    return Math.floor(numero).toString();
+    // Caso padrão para outros números, apenas converte para string
+    return String(numero);
   }
+
 
   // Função para converter string para número de forma segura
   const safeParseFloat = (value) => {
@@ -189,6 +205,7 @@ const ProdutoList = ({ searchParams }) => {
       // Campos básicos
       produto.item_id = item.item_id || item.id || '';
       produto.descricao = item.descricao || '';
+      // Garantir que fornecedor_id seja um número
       produto.fornecedor_id = safeParseFloat(item.fornecedor_id);
       produto.situacao = item.ativo || 'A';
 
@@ -670,11 +687,14 @@ const ProdutoList = ({ searchParams }) => {
         dadosParaEnviar.ativo = value === '' ? 'A' : value;
       } else if (field.startsWith('loja')) {
         const lojaNumero = field.replace('loja', '');
-        dadosParaEnviar[`estoque_pdv${lojaNumero}`] = value === '' ? 0 : parseFloat(value);
+        // Garantir que seja um número inteiro antes de enviar
+        dadosParaEnviar[`estoque_pdv${lojaNumero}`] = value === '' ? 0 : parseInt(value, 10);
       } else if (field.startsWith('venda')) {
         const vendaNumero = field.replace('venda', '');
+        // Garantir que seja um número decimal antes de enviar
         dadosParaEnviar[`valor_venda${vendaNumero}`] = value === '' ? 0 : parseFloat(value);
       } else if (field === 'custo_final') {
+        // Garantir que seja um número decimal antes de enviar
         dadosParaEnviar.custo_venda = value === '' ? 0 : parseFloat(value);
       } else {
         dadosParaEnviar[field] = value;
@@ -792,10 +812,15 @@ const ProdutoList = ({ searchParams }) => {
                   style={{ height: `${ITEM_HEIGHT}px` }}
                 >
                   {columns.map((column, colIndex) => {
+                    // Valor bruto do objeto produto
                     const valorBruto = produto[column.id];
-                    // USAR A MESMA LÓGICA DE FORMATAÇÃO QUE FUNCIONOU
+                    // Formatar o valor para exibição
                     const valorFormatado = formatarValor(valorBruto, column);
-                    const valorParaEdicao = valorBruto !== undefined && valorBruto !== null ? valorBruto.toString() : '';
+                    // O valor para edição deve ser sempre a representação string do valor bruto
+                    // sem formatação para que o EditableCell possa parseá-lo corretamente.
+                    const valorParaEdicao = (valorBruto !== undefined && valorBruto !== null)
+                      ? String(valorBruto) // Convertendo diretamente para string
+                      : '';
 
                     return (
                       <td
@@ -808,41 +833,19 @@ const ProdutoList = ({ searchParams }) => {
                         }}
                       >
                         {column.editable ? (
-                          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                            {/* Mostrar valor formatado quando não está editando */}
-                            <div
-                              style={{
-                                padding: '0.5rem 0.35rem',
-                                width: '100%',
-                                height: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                cursor: 'pointer',
-                                backgroundColor: 'transparent'
-                              }}
-                              onDoubleClick={(e) => {
-                                // Permitir que o EditableCell funcione
-                                console.log('🖱️ Duplo clique na célula editável');
-                              }}
-                            >
-                              {valorFormatado}
-                            </div>
-                            {/* EditableCell para edição */}
-                            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }}>
-                              <EditableCell
-                                id={`cell-${virtualIndex}-${colIndex}`}
-                                value={valorParaEdicao}
-                                onSave={(value) => handleCellChange(produto.item_id, column.id, value)}
-                                tabIndex={getTabIndex(virtualIndex, colIndex)}
-                                onKeyNavigation={(direction, vIndex, cIndex) => {
-                                  handleKeyNavigation(direction, vIndex, cIndex);
-                                }}
-                                rowIndex={virtualIndex}
-                                colIndex={colIndex}
-                                columnType={column.type}
-                              />
-                            </div>
-                          </div>
+                          <EditableCell
+                            id={`cell-${realRowIndex}-${colIndex}`}
+                            value={valorParaEdicao} // Passar o valor bruto como string
+                            onSave={(value) => handleCellChange(produto.item_id, column.id, value)}
+                            tabIndex={getTabIndex(virtualIndex, colIndex)}
+                            onKeyNavigation={(direction, vIndex, cIndex) => {
+                              handleKeyNavigation(direction, vIndex, cIndex);
+                            }}
+                            rowIndex={virtualIndex}
+                            colIndex={colIndex}
+                            columnType={column.type}
+                            isFocused={currentCell.rowIndex === realRowIndex && currentCell.colIndex === colIndex}
+                          />
                         ) : (
                           <div
                             tabIndex={getTabIndex(virtualIndex, colIndex)}
@@ -869,6 +872,11 @@ const ProdutoList = ({ searchParams }) => {
                                   e.preventDefault();
                                   handleKeyNavigation('right', virtualIndex, colIndex);
                                   break;
+                                case 'Enter':
+                                  e.preventDefault();
+                                  setCurrentCell({ rowIndex: realRowIndex, colIndex });
+                                  setSelectedProduct(produto);
+                                  break;
                               }
                             }}
                             style={{
@@ -878,7 +886,9 @@ const ProdutoList = ({ searchParams }) => {
                               width: '100%',
                               height: '100%',
                               display: 'flex',
-                              alignItems: 'center'
+                              alignItems: 'center',
+                              backgroundColor: (currentCell.rowIndex === realRowIndex && currentCell.colIndex === colIndex) ? 'var(--highlight-bg-color, #e0f7fa)' : 'transparent',
+                              border: (currentCell.rowIndex === realRowIndex && currentCell.colIndex === colIndex) ? '1px solid var(--highlight-border-color, #00bcd4)' : '1px solid transparent'
                             }}
                           >
                             {valorFormatado}
