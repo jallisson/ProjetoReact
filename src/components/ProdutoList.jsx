@@ -3,26 +3,22 @@ import EditableCell from './EditableCell';
 import axios from 'axios';
 import './StatusBar.css';
 
-// Configuração inteligente da API (detecta ambiente automaticamente)
+// Configuração da API
 const getApiUrl = () => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
-  
-  // Desenvolvimento local
+
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     console.log('🔧 Ambiente: DESENVOLVIMENTO');
     return 'http://localhost:5000';
   }
-  
-  // Produção no Render
+
   if (hostname.includes('onrender.com')) {
     console.log('🚀 Ambiente: PRODUÇÃO (Render)');
     return 'https://projetoreact-1.onrender.com';
   }
-  
-  // Outros ambientes (Netlify, Vercel, etc.)
+
   console.log('🌍 Ambiente: PRODUÇÃO (Outro)');
-  // Se for HTTPS, usa HTTPS; se for HTTP, usa HTTP
   return `${protocol}//${hostname}:5000`;
 };
 
@@ -56,40 +52,40 @@ const ProdutoList = ({ searchParams }) => {
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
 
-  // Definir colunas da tabela
+  // Definir colunas da tabela - TODAS AS COLUNAS
   const columns = [
     { id: 'item_id', header: 'Código', editable: false, type: 'text' },
     { id: 'descricao', header: 'Nome', editable: true, type: 'text' },
     { id: 'fornecedor_id', header: 'Fornecedor', editable: true, type: 'number' },
     { id: 'situacao', header: 'Situação', editable: true, type: 'text' },
-    { id: 'loja1', header: 'Loja1', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja2', header: 'Loja2', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja3', header: 'Loja3', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja4', header: 'Loja4', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja5', header: 'Loja5', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja6', header: 'Loja6', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja7', header: 'Loja7', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja8', header: 'Loja8', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja9', header: 'Loja9', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja10', header: 'Loja10', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja11', header: 'Loja11', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja12', header: 'Loja12', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja13', header: 'Loja13', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja14', header: 'Loja14', editable: true, type: 'number', noDecimals: true },
-    { id: 'loja15', header: 'Loja15', editable: true, type: 'number', noDecimals: true },
-    { id: 'custo_final', header: 'Custo Final', editable: true, type: 'number', truncate: true },
-    { id: 'venda1', header: 'Venda1', editable: true, type: 'number', truncate: true },
-    { id: 'venda2', header: 'Venda2', editable: true, type: 'number', truncate: true },
-    { id: 'venda3', header: 'Venda3', editable: true, type: 'number', truncate: true },
-    { id: 'venda4', header: 'Venda4', editable: true, type: 'number', truncate: true }
+    { id: 'loja1', header: 'Loja1', editable: true, type: 'number', isInteger: true },
+    { id: 'loja2', header: 'Loja2', editable: true, type: 'number', isInteger: true },
+    { id: 'loja3', header: 'Loja3', editable: true, type: 'number', isInteger: true },
+    { id: 'loja4', header: 'Loja4', editable: true, type: 'number', isInteger: true },
+    { id: 'loja5', header: 'Loja5', editable: true, type: 'number', isInteger: true },
+    { id: 'loja6', header: 'Loja6', editable: true, type: 'number', isInteger: true },
+    { id: 'loja7', header: 'Loja7', editable: true, type: 'number', isInteger: true },
+    { id: 'loja8', header: 'Loja8', editable: true, type: 'number', isInteger: true },
+    { id: 'loja9', header: 'Loja9', editable: true, type: 'number', isInteger: true },
+    { id: 'loja10', header: 'Loja10', editable: true, type: 'number', isInteger: true },
+    { id: 'loja11', header: 'Loja11', editable: true, type: 'number', isInteger: true },
+    { id: 'loja12', header: 'Loja12', editable: true, type: 'number', isInteger: true },
+    { id: 'loja13', header: 'Loja13', editable: true, type: 'number', isInteger: true },
+    { id: 'loja14', header: 'Loja14', editable: true, type: 'number', isInteger: true },
+    { id: 'loja15', header: 'Loja15', editable: true, type: 'number', isInteger: true },
+    { id: 'custo_final', header: 'Custo Final', editable: true, type: 'number', isDecimal: true },
+    { id: 'venda1', header: 'Venda1', editable: true, type: 'number', isDecimal: true },
+    { id: 'venda2', header: 'Venda2', editable: true, type: 'number', isDecimal: true },
+    { id: 'venda3', header: 'Venda3', editable: true, type: 'number', isDecimal: true },
+    { id: 'venda4', header: 'Venda4', editable: true, type: 'number', isDecimal: true }
   ];
 
-  // LÓGICA DE VIRTUALIZAÇÃO - Calcular quais itens renderizar
+  // LÓGICA DE VIRTUALIZAÇÃO
   const virtualizedData = useMemo(() => {
     if (!containerHeight || filteredProdutos.length === 0) {
       return {
         startIndex: 0,
-        endIndex: Math.min(50, filteredProdutos.length), // Renderizar no máximo 50 itens inicialmente
+        endIndex: Math.min(50, filteredProdutos.length),
         visibleItems: filteredProdutos.slice(0, Math.min(50, filteredProdutos.length)),
         totalHeight: filteredProdutos.length * ITEM_HEIGHT,
         offsetY: 0
@@ -112,6 +108,41 @@ const ProdutoList = ({ searchParams }) => {
     };
   }, [scrollTop, containerHeight, filteredProdutos]);
 
+  // FUNÇÃO DE FORMATAÇÃO QUE FUNCIONOU
+  function formatarValor(valor, coluna) {
+    // Se for vazio ou nulo
+    if (valor === null || valor === undefined || valor === '') {
+      return '';
+    }
+
+    // Se for texto
+    if (coluna.type !== 'number') {
+      return String(valor);
+    }
+
+    // Converter para número
+    const numero = parseFloat(valor);
+    if (isNaN(numero)) {
+      return '0';
+    }
+
+    // Se for inteiro (lojas)
+    if (coluna.isInteger) {
+      return Math.floor(numero).toString();
+    }
+
+    // Se for decimal (custo e vendas)
+    if (coluna.isDecimal) {
+      return numero.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    // Fornecedor (inteiro)
+    return Math.floor(numero).toString();
+  }
+
   // Função para converter string para número de forma segura
   const safeParseFloat = (value) => {
     if (value === null || value === undefined || value === '') return 0;
@@ -119,7 +150,7 @@ const ProdutoList = ({ searchParams }) => {
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  // Função para testar conectividade da API (com fallbacks)
+  // Função para testar conectividade da API
   const testApiConnection = async () => {
     const testUrls = [
       API_URL,
@@ -132,7 +163,7 @@ const ProdutoList = ({ searchParams }) => {
       try {
         console.log(`🌐 Testando: ${url}`);
         const response = await axios.get(url.replace(API_URL, '') || '/', { timeout: 10000 });
-        
+
         if (response.status === 200) {
           console.log(`✅ API respondendo em: ${url}`);
           return true;
@@ -161,17 +192,17 @@ const ProdutoList = ({ searchParams }) => {
       produto.fornecedor_id = safeParseFloat(item.fornecedor_id);
       produto.situacao = item.ativo || 'A';
 
-      // Mapear estoque_pdv1-15 para loja1-15 (convertendo strings para números)
+      // Mapear estoque_pdv1-15 para loja1-15
       for (let i = 1; i <= 15; i++) {
         const estoqueField = `estoque_pdv${i}`;
         const lojaField = `loja${i}`;
         produto[lojaField] = safeParseFloat(item[estoqueField]);
       }
 
-      // Mapear custo_venda para custo_final (convertendo string para número)
+      // Mapear custo_venda para custo_final
       produto.custo_final = safeParseFloat(item.custo_venda);
 
-      // Mapear valor_venda1-4 para venda1-4 (convertendo strings para números)
+      // Mapear valor_venda1-4 para venda1-4
       for (let i = 1; i <= 4; i++) {
         const valorField = `valor_venda${i}`;
         const vendaField = `venda${i}`;
@@ -182,19 +213,18 @@ const ProdutoList = ({ searchParams }) => {
     });
   };
 
-  // Função para buscar dados iniciais com retry automático
+  // Função para buscar dados iniciais
   const fetchInitialProdutos = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       setPage(1);
-      // Reset scroll position
       setScrollTop(0);
 
       console.log('🚀 Iniciando busca de produtos...');
       console.log('📋 Parâmetros de busca:', searchParams);
 
-      // Primeiro teste de conectividade
+      // Teste de conectividade
       const isApiOnline = await testApiConnection();
       if (!isApiOnline) {
         setError('❌ API não está respondendo. Verifique sua conexão ou se o servidor está online.');
@@ -233,7 +263,7 @@ const ProdutoList = ({ searchParams }) => {
           }
         } else {
           console.log('📦 Busca geral de produtos...');
-          response = await axios.get('/api/produtos', { 
+          response = await axios.get('/api/produtos', {
             params,
             timeout: 15000
           });
@@ -243,7 +273,6 @@ const ProdutoList = ({ searchParams }) => {
 
       } catch (apiError) {
         console.error('❌ Erro na API:', apiError);
-        
         let errorMessage = 'Erro ao conectar com a API';
         if (apiError.code === 'ECONNABORTED') {
           errorMessage = 'Timeout: A API demorou muito para responder';
@@ -252,7 +281,6 @@ const ProdutoList = ({ searchParams }) => {
         } else if (apiError.response?.status >= 500) {
           errorMessage = 'Erro interno do servidor';
         }
-        
         setError(`${errorMessage}: ${apiError.message}`);
         setLoading(false);
         return;
@@ -298,8 +326,8 @@ const ProdutoList = ({ searchParams }) => {
 
       // Aplicar filtros locais se necessário
       if ((searchParams.filter === 'codigo' && searchParams.term) ||
-          (searchParams.filter === 'moto' && searchParams.term)) {
-        
+        (searchParams.filter === 'moto' && searchParams.term)) {
+
         let filtered = produtosNormalizados;
 
         if (searchParams.filter === 'codigo') {
@@ -342,7 +370,7 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [searchParams]);
 
-  // Função para carregar mais produtos (otimizada para não degradar performance)
+  // Função para carregar mais produtos
   const fetchMoreProdutos = useCallback(async () => {
     if (!hasMore || loadingMore) {
       return;
@@ -356,7 +384,7 @@ const ProdutoList = ({ searchParams }) => {
 
       const params = {
         page: nextPage,
-        limit: 100, // Aumentar limite para reduzir número de requests
+        limit: 100,
         sort: 'asc'
       };
 
@@ -384,7 +412,7 @@ const ProdutoList = ({ searchParams }) => {
           });
         }
       } else {
-        response = await axios.get('/api/produtos', { 
+        response = await axios.get('/api/produtos', {
           params,
           timeout: 15000
         });
@@ -449,12 +477,11 @@ const ProdutoList = ({ searchParams }) => {
     fetchInitialProdutos();
   }, [fetchInitialProdutos]);
 
-  // Effect para observar mudanças no container e scroll - CORRIGIDO
+  // Effect para scroll e redimensionamento
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Observar redimensionamento do container
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
@@ -464,12 +491,9 @@ const ProdutoList = ({ searchParams }) => {
 
     resizeObserver.observe(container);
 
-    // Scroll handler otimizado e corrigido
     let isScrolling = false;
-    
     const handleScroll = () => {
       if (isScrolling) return;
-      
       isScrolling = true;
       requestAnimationFrame(() => {
         const newScrollTop = container.scrollTop;
@@ -490,8 +514,6 @@ const ProdutoList = ({ searchParams }) => {
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
-
-    // Definir altura inicial
     setContainerHeight(container.clientHeight);
 
     return () => {
@@ -499,30 +521,6 @@ const ProdutoList = ({ searchParams }) => {
       container.removeEventListener('scroll', handleScroll);
     };
   }, [fetchMoreProdutos, hasMore, loadingMore]);
-
-  // Focus handler simplificado para evitar scroll desnecessário
-  const focusCurrentCell = useCallback(() => {
-    if (filteredProdutos.length === 0) return;
-    const { rowIndex, colIndex } = currentCell;
-    
-    // Verificar se a linha está na área visível
-    const { startIndex, endIndex } = virtualizedData;
-    if (rowIndex >= startIndex && rowIndex < endIndex) {
-      setTimeout(() => {
-        const adjustedRowIndex = rowIndex - startIndex;
-        const cellId = `cell-${adjustedRowIndex}-${colIndex}`;
-        const cell = document.getElementById(cellId);
-        if (cell) {
-          cell.focus();
-        }
-      }, 10);
-    }
-  }, [currentCell, filteredProdutos, virtualizedData]);
-
-  // Effect para focar na célula atual após mudanças
-  useEffect(() => {
-    focusCurrentCell();
-  }, [focusCurrentCell]);
 
   // Effect para atualizar produto selecionado
   useEffect(() => {
@@ -539,7 +537,7 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [filteredProdutos, selectedProduct]);
 
-  // Navigation handler corrigido para virtualização - SEM SCROLL AUTOMÁTICO
+  // Navigation handler
   const handleKeyNavigation = useCallback((direction, virtualRowIndex, colIndex) => {
     const realRowIndex = virtualRowIndex + virtualizedData.startIndex;
     const maxRow = filteredProdutos.length - 1;
@@ -552,7 +550,6 @@ const ProdutoList = ({ searchParams }) => {
       case 'up':
         newRowIndex = Math.max(0, realRowIndex - 1);
         break;
-
       case 'down':
         newRowIndex = Math.min(maxRow, realRowIndex + 1);
         // Trigger load more if near end
@@ -564,7 +561,6 @@ const ProdutoList = ({ searchParams }) => {
           }, 100);
         }
         break;
-
       case 'left': {
         let foundEditableCell = false;
         for (let col = colIndex - 1; col >= 0; col--) {
@@ -585,7 +581,6 @@ const ProdutoList = ({ searchParams }) => {
         }
         break;
       }
-
       case 'right': {
         let foundEditableCell = false;
         for (let col = colIndex + 1; col <= maxCol; col++) {
@@ -608,20 +603,19 @@ const ProdutoList = ({ searchParams }) => {
       }
     }
 
-    // Scroll suave apenas se necessário e SOMENTE com teclado
+    // Scroll suave apenas se necessário
     if (newRowIndex !== realRowIndex) {
       const container = containerRef.current;
       if (container) {
         const targetY = newRowIndex * ITEM_HEIGHT;
         const viewportTop = scrollTop;
         const viewportBottom = scrollTop + containerHeight;
-        
-        // Só fazer scroll se a linha estiver fora da área visível
+
         if (targetY < viewportTop || targetY + ITEM_HEIGHT > viewportBottom) {
           const newScrollTop = Math.max(0, targetY - (containerHeight / 3));
           container.scrollTo({
             top: newScrollTop,
-            behavior: 'auto' // Mudado para 'auto' para evitar conflitos
+            behavior: 'auto'
           });
         }
       }
@@ -632,18 +626,6 @@ const ProdutoList = ({ searchParams }) => {
     if (newRowIndex >= 0 && newRowIndex < filteredProdutos.length) {
       setSelectedProduct(filteredProdutos[newRowIndex]);
     }
-
-    // Focar na nova célula após a navegação
-    setTimeout(() => {
-      const newVirtualIndex = newRowIndex - virtualizedData.startIndex;
-      if (newVirtualIndex >= 0 && newVirtualIndex < virtualizedData.visibleItems.length) {
-        const cellId = `cell-${newVirtualIndex}-${newColIndex}`;
-        const cell = document.getElementById(cellId);
-        if (cell) {
-          cell.focus();
-        }
-      }
-    }, 50);
   }, [virtualizedData, filteredProdutos, columns, hasMore, loadingMore, fetchMoreProdutos, scrollTop, containerHeight]);
 
   const handleRowMouseEnter = useCallback((produto, realRowIndex) => {
@@ -651,7 +633,7 @@ const ProdutoList = ({ searchParams }) => {
     setCurrentCell(prev => ({ ...prev, rowIndex: realRowIndex }));
   }, []);
 
-  // Cell change handler (mantém otimizações existentes)
+  // Cell change handler
   const handleCellChange = useCallback(async (id, field, value) => {
     try {
       const produtoIndex = produtos.findIndex(p =>
@@ -734,43 +716,9 @@ const ProdutoList = ({ searchParams }) => {
     return (virtualRowIndex * columns.length) + editableColIndex + 100;
   }, [columns.length]);
 
-  // Função de formatação mais robusta
-  const formatValue = useCallback((value, column) => {
-    if (value === null || value === undefined || value === '') return '';
-
-    if (column.type === 'number') {
-      // Converter para string primeiro, depois para número
-      let stringValue = value.toString();
-      // Limpar qualquer formatação existente
-      stringValue = stringValue.replace(/[^\d.,\-]/g, '').replace(',', '.');
-      const numValue = parseFloat(stringValue);
-      
-      // Se não for um número válido, retornar 0
-      if (isNaN(numValue)) return '0';
-
-      if (column.noDecimals) {
-        // Lojas - apenas números inteiros
-        return Math.floor(numValue).toString();
-      }
-
-      if (column.truncate) {
-        // Custo Final e Vendas - FORÇAR exatamente 2 casas decimais
-        return (Math.round(numValue * 100) / 100).toLocaleString('pt-BR', { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 2 
-        });
-      }
-
-      // Outros números (como fornecedor) - sem decimais
-      return Math.floor(numValue).toString();
-    }
-
-    return value.toString();
-  }, []);
-
   const showNoMoreData = !hasMore && !loadingMore && filteredProdutos.length > 0;
 
-  // Renderização com informações de debug em desenvolvimento
+  // Renderização
   if (loading && filteredProdutos.length === 0) {
     return (
       <div className="loading">
@@ -830,12 +778,12 @@ const ProdutoList = ({ searchParams }) => {
                 <td colSpan={columns.length} style={{ padding: 0, border: 'none' }} />
               </tr>
             )}
-            
+
             {/* Renderizar apenas as linhas visíveis */}
             {virtualizedData.visibleItems.map((produto, virtualIndex) => {
               const realRowIndex = virtualizedData.startIndex + virtualIndex;
               const isHighlighted = currentCell.rowIndex === realRowIndex;
-              
+
               return (
                 <tr
                   key={`row-${produto.item_id}-${realRowIndex}`}
@@ -844,9 +792,10 @@ const ProdutoList = ({ searchParams }) => {
                   style={{ height: `${ITEM_HEIGHT}px` }}
                 >
                   {columns.map((column, colIndex) => {
-                    const rawValue = produto[column.id];
-                    const displayValue = formatValue(rawValue, column);
-                    const editValue = rawValue !== undefined ? rawValue.toString() : '';
+                    const valorBruto = produto[column.id];
+                    // USAR A MESMA LÓGICA DE FORMATAÇÃO QUE FUNCIONOU
+                    const valorFormatado = formatarValor(valorBruto, column);
+                    const valorParaEdicao = valorBruto !== undefined && valorBruto !== null ? valorBruto.toString() : '';
 
                     return (
                       <td
@@ -859,20 +808,43 @@ const ProdutoList = ({ searchParams }) => {
                         }}
                       >
                         {column.editable ? (
-                          <EditableCell
-                            id={`cell-${virtualIndex}-${colIndex}`}
-                            value={editValue} // Sempre usar valor raw para edição
-                            onSave={(value) => handleCellChange(produto.item_id, column.id, value)}
-                            tabIndex={getTabIndex(virtualIndex, colIndex)}
-                            onKeyNavigation={(direction, vIndex, cIndex) => {
-                              handleKeyNavigation(direction, vIndex, cIndex);
-                            }}
-                            rowIndex={virtualIndex}
-                            colIndex={colIndex}
-                            columnType={column.type}
-                          />
+                          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                            {/* Mostrar valor formatado quando não está editando */}
+                            <div
+                              style={{
+                                padding: '0.5rem 0.35rem',
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                cursor: 'pointer',
+                                backgroundColor: 'transparent'
+                              }}
+                              onDoubleClick={(e) => {
+                                // Permitir que o EditableCell funcione
+                                console.log('🖱️ Duplo clique na célula editável');
+                              }}
+                            >
+                              {valorFormatado}
+                            </div>
+                            {/* EditableCell para edição */}
+                            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }}>
+                              <EditableCell
+                                id={`cell-${virtualIndex}-${colIndex}`}
+                                value={valorParaEdicao}
+                                onSave={(value) => handleCellChange(produto.item_id, column.id, value)}
+                                tabIndex={getTabIndex(virtualIndex, colIndex)}
+                                onKeyNavigation={(direction, vIndex, cIndex) => {
+                                  handleKeyNavigation(direction, vIndex, cIndex);
+                                }}
+                                rowIndex={virtualIndex}
+                                colIndex={colIndex}
+                                columnType={column.type}
+                              />
+                            </div>
+                          </div>
                         ) : (
-                          <div 
+                          <div
                             tabIndex={getTabIndex(virtualIndex, colIndex)}
                             onFocus={() => {
                               setCurrentCell({ rowIndex: realRowIndex, colIndex });
@@ -909,7 +881,7 @@ const ProdutoList = ({ searchParams }) => {
                               alignItems: 'center'
                             }}
                           >
-                            {displayValue}
+                            {valorFormatado}
                           </div>
                         )}
                       </td>
@@ -918,7 +890,7 @@ const ProdutoList = ({ searchParams }) => {
                 </tr>
               );
             })}
-            
+
             {/* Espaçador inferior para simular linhas não renderizadas */}
             {virtualizedData.endIndex < filteredProdutos.length && (
               <tr style={{ height: `${virtualizedData.totalHeight - virtualizedData.offsetY - (virtualizedData.visibleItems.length * ITEM_HEIGHT)}px` }}>
@@ -932,7 +904,7 @@ const ProdutoList = ({ searchParams }) => {
         <div
           ref={loadingRef}
           className="loading-more"
-          style={{ 
+          style={{
             visibility: hasMore ? 'visible' : 'hidden',
             position: 'absolute',
             bottom: '20px',
