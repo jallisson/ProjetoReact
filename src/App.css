@@ -129,7 +129,7 @@
 }
 
 /* =============================================== */
-/* TABELA DE PRODUTOS                             */
+/* TABELA DE PRODUTOS - OTIMIZADA PARA VIRTUALIZAÇÃO */
 /* =============================================== */
 
 .fixed-table-container {
@@ -145,6 +145,9 @@
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   overscroll-behavior: contain;
+  /* OTIMIZAÇÕES CRÍTICAS PARA PERFORMANCE */
+  will-change: scroll-position;
+  contain: layout style paint;
 }
 
 .produtos-table {
@@ -153,6 +156,9 @@
   table-layout: fixed;
   min-width: 1200px;
   touch-action: pan-x pan-y;
+  /* OTIMIZAÇÕES PARA RENDERIZAÇÃO */
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .produtos-table thead {
@@ -160,6 +166,8 @@
   top: 0;
   z-index: 10;
   background-color: #f8f9fa;
+  /* OTIMIZAÇÃO PARA HEADER FIXO */
+  will-change: transform;
 }
 
 .produtos-table th {
@@ -172,17 +180,25 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* PERFORMANCE */
+  contain: layout style;
 }
 
 .produtos-table td {
   padding: 0 !important;
-  height: 36px;
+  height: 36px; /* ALTURA FIXA CRÍTICA PARA VIRTUALIZAÇÃO */
   border-bottom: 1px solid #eee;
   font-size: 0.85rem;
+  /* OTIMIZAÇÕES PARA CÉLULAS */
+  contain: layout style;
+  will-change: auto;
 }
 
+/* OTIMIZAR HOVER E SELEÇÃO PARA PERFORMANCE */
 .produtos-table tr:hover {
   background-color: rgba(52, 152, 219, 0.1);
+  /* Usar transform em vez de background para melhor performance */
+  transform: translateZ(0);
 }
 
 .produtos-table tr:nth-child(even) {
@@ -192,10 +208,13 @@
 .produtos-table tr.highlighted {
   background-color: rgba(76, 175, 80, 0.2);
   border-left: 3px solid #4caf50;
+  /* OTIMIZAÇÃO PARA LINHA SELECIONADA */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 /* =============================================== */
-/* LARGURAS DAS COLUNAS                           */
+/* LARGURAS DAS COLUNAS - MANTIDAS PARA LAYOUT    */
 /* =============================================== */
 
 /* Código */
@@ -268,7 +287,7 @@
 }
 
 /* =============================================== */
-/* CÉLULAS EDITÁVEIS                              */
+/* CÉLULAS EDITÁVEIS - OTIMIZADAS                 */
 /* =============================================== */
 
 .editable-cell {
@@ -338,6 +357,9 @@
   box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
   border-top: 1px solid #444;
   min-height: 44px;
+  /* OTIMIZAÇÃO PARA BARRA FIXA */
+  will-change: contents;
+  contain: layout style;
 }
 
 .status-code {
@@ -363,7 +385,7 @@
 }
 
 /* =============================================== */
-/* ELEMENTOS DE ESTADO                            */
+/* ELEMENTOS DE ESTADO - OTIMIZADOS               */
 /* =============================================== */
 
 .loading, 
@@ -375,6 +397,8 @@
   border-radius: 5px;
   background-color: white;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  /* PERFORMANCE */
+  contain: layout style;
 }
 
 .loading {
@@ -396,6 +420,9 @@
   color: #666;
   position: relative;
   z-index: 5;
+  /* OTIMIZAÇÃO PARA INDICATOR FLUTUANTE */
+  will-change: opacity;
+  contain: layout style;
 }
 
 .end-of-list {
@@ -405,10 +432,12 @@
   font-size: 0.9rem;
   border-top: 1px solid #eeeeee;
   background-color: #f9f9f9;
+  /* PERFORMANCE */
+  contain: layout style;
 }
 
 /* =============================================== */
-/* SCROLLBAR CUSTOMIZADA                          */
+/* SCROLLBAR CUSTOMIZADA - OTIMIZADA              */
 /* =============================================== */
 
 .fixed-table-container::-webkit-scrollbar {
@@ -424,10 +453,34 @@
 .fixed-table-container::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 4px;
+  /* PERFORMANCE PARA SCROLLBAR */
+  will-change: background-color;
 }
 
 .fixed-table-container::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* =============================================== */
+/* OTIMIZAÇÕES ESPECÍFICAS PARA VIRTUALIZAÇÃO     */
+/* =============================================== */
+
+/* Espaçadores virtuais não devem ter transições */
+.produtos-table tbody tr[style*="height"] {
+  transition: none !important;
+  pointer-events: none;
+}
+
+.produtos-table tbody tr[style*="height"] td {
+  transition: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* Otimizar rendering de linhas visíveis */
+.produtos-table tbody tr:not([style*="height"]) {
+  contain: layout style;
+  transform: translateZ(0);
 }
 
 /* =============================================== */
@@ -669,6 +722,8 @@
   .editable-cell {
     min-height: 36px;
     padding: 0.6rem 0.4rem;
+    /* Melhorar resposta ao toque */
+    -webkit-tap-highlight-color: rgba(52, 152, 219, 0.3);
   }
   
   .cell-input {
@@ -681,6 +736,7 @@
     padding: 0.875rem 1.125rem;
   }
   
+  /* Remover hover em dispositivos touch */
   .editable-cell:hover {
     background-color: transparent;
     border: 1px solid transparent;
@@ -694,4 +750,236 @@
   .green-button:hover {
     background-color: #4caf50;
   }
+  
+  /* Facilitar duplo toque em mobile */
+  .editable-cell {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* =============================================== */
+/* OTIMIZAÇÕES ESPECÍFICAS DE PERFORMANCE         */
+/* =============================================== */
+
+/* Desabilitar transições em elementos que mudam frequentemente durante scroll */
+.produtos-table tbody tr {
+  transition: none !important;
+}
+
+/* Re-habilitar transições apenas onde necessário */
+.produtos-table tr.highlighted {
+  transition: background-color 0.1s ease, border-color 0.1s ease;
+}
+
+.editable-cell:focus {
+  transition: outline-color 0.1s ease, background-color 0.1s ease;
+}
+
+.cell-input:focus {
+  transition: outline-color 0.1s ease, background-color 0.1s ease;
+}
+
+/* GPU acceleration para elementos críticos */
+.fixed-table-container,
+.produtos-table,
+.status-bar {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Otimizar repaint em scroll */
+.produtos-table tbody {
+  will-change: scroll-position;
+  contain: layout style paint;
+}
+
+/* Melhorar performance de hover em telas grandes */
+@media (hover: hover) and (pointer: fine) {
+  .produtos-table tr:hover {
+    transition: background-color 0.1s ease;
+  }
+  
+  .editable-cell:hover {
+    transition: background-color 0.1s ease, border-color 0.1s ease;
+  }
+}
+
+/* =============================================== */
+/* OTIMIZAÇÕES PARA SCROLL SUAVE                  */
+/* =============================================== */
+
+/* Configurações de scroll otimizadas */
+.fixed-table-container {
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Melhorar performance do scroll em dispositivos móveis */
+@media screen and (max-width: 768px) {
+  .fixed-table-container {
+    scroll-behavior: auto; /* Desabilitar smooth scroll em mobile para melhor performance */
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* =============================================== */
+/* PREVENÇÃO DE LAYOUT SHIFT                      */
+/* =============================================== */
+
+/* Garantir que elementos tenham dimensões definidas */
+.loading,
+.error-message,
+.no-data {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-more {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Evitar mudanças de layout durante carregamento */
+.produtos-table tbody {
+  min-height: 200px; /* Altura mínima para evitar jump */
+}
+
+/* =============================================== */
+/* DEBUG E DESENVOLVIMENTO                        */
+/* =============================================== */
+
+/* Estilos de debug apenas em desenvolvimento */
+@media screen and (min-width: 1px) {
+  .debug-info {
+    position: fixed;
+    top: 70px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    z-index: 1000;
+    pointer-events: none;
+    font-family: monospace;
+  }
+}
+
+/* Destacar elementos virtualizados em desenvolvimento */
+.virtual-spacer {
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 2px,
+    rgba(255, 0, 0, 0.1) 2px,
+    rgba(255, 0, 0, 0.1) 4px
+  );
+  opacity: 0.3;
+}
+
+/* =============================================== */
+/* FALLBACKS PARA NAVEGADORES ANTIGOS            */
+/* =============================================== */
+
+/* Fallback para navegadores sem contain */
+@supports not (contain: layout) {
+  .produtos-table td,
+  .produtos-table th,
+  .editable-cell {
+    contain: none;
+  }
+}
+
+/* Fallback para navegadores sem will-change */
+@supports not (will-change: transform) {
+  .produtos-table tbody,
+  .fixed-table-container,
+  .status-bar {
+    will-change: auto;
+  }
+}
+
+/* Fallback para navegadores sem backdrop-filter */
+@supports not (backdrop-filter: blur(10px)) {
+  .loading-more {
+    background: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* =============================================== */
+/* ACESSIBILIDADE MANTIDA                         */
+/* =============================================== */
+
+/* Manter estilos de foco visíveis */
+.editable-cell:focus-visible,
+.cell-input:focus-visible,
+.button:focus-visible {
+  outline: 2px solid #3498db;
+  outline-offset: 2px;
+}
+
+/* Respeitar preferências de movimento reduzido */
+@media (prefers-reduced-motion: reduce) {
+  .fixed-table-container {
+    scroll-behavior: auto;
+  }
+  
+  .produtos-table tr,
+  .editable-cell,
+  .status-bar {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Melhorar contraste para usuários com baixa visão */
+@media (prefers-contrast: high) {
+  .produtos-table td,
+  .produtos-table th {
+    border-color: #000;
+    border-width: 1px;
+  }
+  
+  .editable-cell:focus {
+    outline-width: 3px;
+    outline-color: #000;
+  }
+}
+
+/* =============================================== */
+/* LIMPEZA E RESET FINAL                          */
+/* =============================================== */
+
+/* Garantir que não há estilos conflitantes */
+.produtos-table * {
+  box-sizing: border-box;
+}
+
+/* Reset de margens em elementos da tabela */
+.produtos-table td *,
+.produtos-table th * {
+  margin: 0;
+  padding: 0;
+}
+
+/* Garantir alinhamento consistente */
+.produtos-table {
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+/* Limpar floats e positioning inconsistente */
+.produtos-table::after,
+.produtos-table::before {
+  content: '';
+  display: table;
+  clear: both;
 }

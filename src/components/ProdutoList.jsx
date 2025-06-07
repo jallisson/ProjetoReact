@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import EditableCell from './EditableCell';
 import axios from 'axios';
 import './StatusBar.css';
@@ -32,6 +32,11 @@ axios.defaults.baseURL = API_URL;
 console.log('🌐 API configurada para:', API_URL);
 console.log('📍 Frontend rodando em:', window.location.origin);
 
+// CONSTANTES PARA VIRTUALIZAÇÃO
+const ITEM_HEIGHT = 36; // Altura de cada linha em pixels
+const BUFFER_SIZE = 5; // Número de itens extras para renderizar antes/depois da área visível
+const OVERSCAN = 3; // Itens extras para suavizar o scroll
+
 const ProdutoList = ({ searchParams }) => {
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +51,10 @@ const ProdutoList = ({ searchParams }) => {
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingRef = useRef(null);
   const containerRef = useRef(null);
+
+  // Estados para virtualização
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
 
   // Definir colunas da tabela
   const columns = [
@@ -74,6 +83,34 @@ const ProdutoList = ({ searchParams }) => {
     { id: 'venda3', header: 'Venda3', editable: true, type: 'number', truncate: true },
     { id: 'venda4', header: 'Venda4', editable: true, type: 'number', truncate: true }
   ];
+
+  // LÓGICA DE VIRTUALIZAÇÃO - Calcular quais itens renderizar
+  const virtualizedData = useMemo(() => {
+    if (!containerHeight || filteredProdutos.length === 0) {
+      return {
+        startIndex: 0,
+        endIndex: Math.min(50, filteredProdutos.length), // Renderizar no máximo 50 itens inicialmente
+        visibleItems: filteredProdutos.slice(0, Math.min(50, filteredProdutos.length)),
+        totalHeight: filteredProdutos.length * ITEM_HEIGHT,
+        offsetY: 0
+      };
+    }
+
+    const visibleItemCount = Math.ceil(containerHeight / ITEM_HEIGHT);
+    const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
+    const endIndex = Math.min(
+      filteredProdutos.length,
+      startIndex + visibleItemCount + (BUFFER_SIZE * 2) + OVERSCAN
+    );
+
+    return {
+      startIndex,
+      endIndex,
+      visibleItems: filteredProdutos.slice(startIndex, endIndex),
+      totalHeight: filteredProdutos.length * ITEM_HEIGHT,
+      offsetY: startIndex * ITEM_HEIGHT
+    };
+  }, [scrollTop, containerHeight, filteredProdutos]);
 
   // Função para converter string para número de forma segura
   const safeParseFloat = (value) => {
@@ -151,6 +188,8 @@ const ProdutoList = ({ searchParams }) => {
       setLoading(true);
       setError(null);
       setPage(1);
+      // Reset scroll position
+      setScrollTop(0);
 
       console.log('🚀 Iniciando busca de produtos...');
       console.log('📋 Parâmetros de busca:', searchParams);
@@ -303,7 +342,7 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [searchParams]);
 
-  // Função para carregar mais produtos
+  // Função para carregar mais produtos (otimizada para não degradar performance)
   const fetchMoreProdutos = useCallback(async () => {
     if (!hasMore || loadingMore) {
       return;
@@ -317,7 +356,7 @@ const ProdutoList = ({ searchParams }) => {
 
       const params = {
         page: nextPage,
-        limit: 50,
+        limit: 100, // Aumentar limite para reduzir número de requests
         sort: 'asc'
       };
 
@@ -405,79 +444,119 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [page, hasMore, loadingMore, searchParams, produtos]);
 
-  // Resto das funções permanecem iguais...
+  // Effect para buscar produtos iniciais
   useEffect(() => {
     fetchInitialProdutos();
   }, [fetchInitialProdutos]);
 
+  // Effect para observar mudanças no container e scroll - CORRIGIDO
   useEffect(() => {
-    const handleScroll = () => {
-      if (!containerRef.current || !loadingRef.current || !hasMore || loadingMore) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-      const container = containerRef.current;
-      const containerHeight = container.clientHeight;
-      const scrollTop = container.scrollTop;
-      const scrollHeight = container.scrollHeight;
-
-      const nearBottom = scrollTop + containerHeight >= scrollHeight - 200;
-
-      if (nearBottom) {
-        fetchMoreProdutos();
+    // Observar redimensionamento do container
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setContainerHeight(entry.contentRect.height);
       }
+    });
+
+    resizeObserver.observe(container);
+
+    // Scroll handler otimizado e corrigido
+    let isScrolling = false;
+    
+    const handleScroll = () => {
+      if (isScrolling) return;
+      
+      isScrolling = true;
+      requestAnimationFrame(() => {
+        const newScrollTop = container.scrollTop;
+        setScrollTop(newScrollTop);
+
+        // Carregar mais produtos quando próximo do fim
+        const scrollHeight = container.scrollHeight;
+        const clientHeight = container.clientHeight;
+        const scrollPosition = newScrollTop + clientHeight;
+        const threshold = scrollHeight - (clientHeight * 1.5);
+
+        if (scrollPosition >= threshold && hasMore && !loadingMore) {
+          fetchMoreProdutos();
+        }
+
+        isScrolling = false;
+      });
     };
 
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll, { passive: true });
-      setTimeout(() => {
-        handleScroll();
-      }, 100);
-    }
+    container.addEventListener('scroll', handleScroll, { passive: true });
+
+    // Definir altura inicial
+    setContainerHeight(container.clientHeight);
 
     return () => {
-      if (container) {
-        container.removeEventListener('scroll', handleScroll);
-      }
+      resizeObserver.disconnect();
+      container.removeEventListener('scroll', handleScroll);
     };
   }, [fetchMoreProdutos, hasMore, loadingMore]);
 
+  // Focus handler simplificado para evitar scroll desnecessário
   const focusCurrentCell = useCallback(() => {
     if (filteredProdutos.length === 0) return;
     const { rowIndex, colIndex } = currentCell;
-    setTimeout(() => {
-      const cellId = `cell-${rowIndex}-${colIndex}`;
-      const cell = document.getElementById(cellId);
-      if (cell) {
-        cell.focus();
-      }
-    }, 50);
-  }, [currentCell, filteredProdutos]);
+    
+    // Verificar se a linha está na área visível
+    const { startIndex, endIndex } = virtualizedData;
+    if (rowIndex >= startIndex && rowIndex < endIndex) {
+      setTimeout(() => {
+        const adjustedRowIndex = rowIndex - startIndex;
+        const cellId = `cell-${adjustedRowIndex}-${colIndex}`;
+        const cell = document.getElementById(cellId);
+        if (cell) {
+          cell.focus();
+        }
+      }, 10);
+    }
+  }, [currentCell, filteredProdutos, virtualizedData]);
 
+  // Effect para focar na célula atual após mudanças
   useEffect(() => {
     focusCurrentCell();
-  }, [currentCell, focusCurrentCell]);
+  }, [focusCurrentCell]);
 
+  // Effect para atualizar produto selecionado
   useEffect(() => {
     if (filteredProdutos.length > 0 && currentCell.rowIndex >= 0 && currentCell.rowIndex < filteredProdutos.length) {
       setSelectedProduct(filteredProdutos[currentCell.rowIndex]);
     }
   }, [currentCell, filteredProdutos]);
 
-  const handleKeyNavigation = (direction, rowIndex, colIndex) => {
+  // Effect inicial para definir primeiro produto selecionado
+  useEffect(() => {
+    if (filteredProdutos.length > 0 && !selectedProduct) {
+      setSelectedProduct(filteredProdutos[0]);
+      setCurrentCell({ rowIndex: 0, colIndex: 1 });
+    }
+  }, [filteredProdutos, selectedProduct]);
+
+  // Navigation handler corrigido para virtualização - SEM SCROLL AUTOMÁTICO
+  const handleKeyNavigation = useCallback((direction, virtualRowIndex, colIndex) => {
+    const realRowIndex = virtualRowIndex + virtualizedData.startIndex;
     const maxRow = filteredProdutos.length - 1;
     const maxCol = columns.length - 1;
 
-    let newRowIndex = rowIndex;
+    let newRowIndex = realRowIndex;
     let newColIndex = colIndex;
 
     switch (direction) {
       case 'up':
-        newRowIndex = Math.max(0, rowIndex - 1);
+        newRowIndex = Math.max(0, realRowIndex - 1);
         break;
 
       case 'down':
-        newRowIndex = Math.min(maxRow, rowIndex + 1);
-        if (newRowIndex > maxRow - 3 && hasMore && !loadingMore) {
+        newRowIndex = Math.min(maxRow, realRowIndex + 1);
+        // Trigger load more if near end
+        if (newRowIndex > maxRow - 10 && hasMore && !loadingMore) {
           setTimeout(() => {
             if (hasMore && !loadingMore) {
               fetchMoreProdutos();
@@ -495,8 +574,8 @@ const ProdutoList = ({ searchParams }) => {
             break;
           }
         }
-        if (!foundEditableCell && rowIndex > 0) {
-          newRowIndex = rowIndex - 1;
+        if (!foundEditableCell && realRowIndex > 0) {
+          newRowIndex = realRowIndex - 1;
           for (let col = maxCol; col >= 0; col--) {
             if (columns[col].editable) {
               newColIndex = col;
@@ -516,8 +595,8 @@ const ProdutoList = ({ searchParams }) => {
             break;
           }
         }
-        if (!foundEditableCell && rowIndex < maxRow) {
-          newRowIndex = rowIndex + 1;
+        if (!foundEditableCell && realRowIndex < maxRow) {
+          newRowIndex = realRowIndex + 1;
           for (let col = 0; col <= maxCol; col++) {
             if (columns[col].editable) {
               newColIndex = col;
@@ -529,24 +608,51 @@ const ProdutoList = ({ searchParams }) => {
       }
     }
 
+    // Scroll suave apenas se necessário e SOMENTE com teclado
+    if (newRowIndex !== realRowIndex) {
+      const container = containerRef.current;
+      if (container) {
+        const targetY = newRowIndex * ITEM_HEIGHT;
+        const viewportTop = scrollTop;
+        const viewportBottom = scrollTop + containerHeight;
+        
+        // Só fazer scroll se a linha estiver fora da área visível
+        if (targetY < viewportTop || targetY + ITEM_HEIGHT > viewportBottom) {
+          const newScrollTop = Math.max(0, targetY - (containerHeight / 3));
+          container.scrollTo({
+            top: newScrollTop,
+            behavior: 'auto' // Mudado para 'auto' para evitar conflitos
+          });
+        }
+      }
+    }
+
     setCurrentCell({ rowIndex: newRowIndex, colIndex: newColIndex });
 
     if (newRowIndex >= 0 && newRowIndex < filteredProdutos.length) {
       setSelectedProduct(filteredProdutos[newRowIndex]);
     }
 
+    // Focar na nova célula após a navegação
     setTimeout(() => {
-      const cellId = `cell-${newRowIndex}-${newColIndex}`;
-      const cell = document.getElementById(cellId);
-      if (cell) cell.focus();
-    }, 0);
-  };
+      const newVirtualIndex = newRowIndex - virtualizedData.startIndex;
+      if (newVirtualIndex >= 0 && newVirtualIndex < virtualizedData.visibleItems.length) {
+        const cellId = `cell-${newVirtualIndex}-${newColIndex}`;
+        const cell = document.getElementById(cellId);
+        if (cell) {
+          cell.focus();
+        }
+      }
+    }, 50);
+  }, [virtualizedData, filteredProdutos, columns, hasMore, loadingMore, fetchMoreProdutos, scrollTop, containerHeight]);
 
-  const handleRowMouseEnter = (produto) => {
+  const handleRowMouseEnter = useCallback((produto, realRowIndex) => {
     setSelectedProduct(produto);
-  };
+    setCurrentCell(prev => ({ ...prev, rowIndex: realRowIndex }));
+  }, []);
 
-  const handleCellChange = async (id, field, value) => {
+  // Cell change handler (mantém otimizações existentes)
+  const handleCellChange = useCallback(async (id, field, value) => {
     try {
       const produtoIndex = produtos.findIndex(p =>
         (p.item_id?.toString() || p.id?.toString()) === id.toString()
@@ -621,32 +727,46 @@ const ProdutoList = ({ searchParams }) => {
       console.error('❌ Erro ao atualizar produto:', err);
       setError('Erro ao atualizar o produto. Tente novamente.');
     }
-  };
+  }, [produtos, filteredProdutos, selectedProduct]);
 
-  const getTabIndex = (rowIndex, colIndex) => {
+  const getTabIndex = useCallback((virtualRowIndex, colIndex) => {
     const editableColIndex = colIndex > 0 ? colIndex : 0;
-    return (rowIndex * columns.length) + editableColIndex + 100;
-  };
+    return (virtualRowIndex * columns.length) + editableColIndex + 100;
+  }, [columns.length]);
 
-  const formatValue = (value, column) => {
-    if (value === null || value === undefined) return '';
+  // Função de formatação mais robusta
+  const formatValue = useCallback((value, column) => {
+    if (value === null || value === undefined || value === '') return '';
 
     if (column.type === 'number') {
-      const numValue = typeof value === 'string' ? parseFloat(value) : value;
+      // Converter para string primeiro, depois para número
+      let stringValue = value.toString();
+      // Limpar qualquer formatação existente
+      stringValue = stringValue.replace(/[^\d.,\-]/g, '').replace(',', '.');
+      const numValue = parseFloat(stringValue);
+      
+      // Se não for um número válido, retornar 0
+      if (isNaN(numValue)) return '0';
 
       if (column.noDecimals) {
+        // Lojas - apenas números inteiros
         return Math.floor(numValue).toString();
       }
 
       if (column.truncate) {
-        return numValue.toFixed(2);
+        // Custo Final e Vendas - FORÇAR exatamente 2 casas decimais
+        return (Math.round(numValue * 100) / 100).toLocaleString('pt-BR', { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 2 
+        });
       }
 
-      return numValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      // Outros números (como fornecedor) - sem decimais
+      return Math.floor(numValue).toString();
     }
 
     return value.toString();
-  };
+  }, []);
 
   const showNoMoreData = !hasMore && !loadingMore && filteredProdutos.length > 0;
 
@@ -678,6 +798,9 @@ const ProdutoList = ({ searchParams }) => {
               <li>API URL: {API_URL}</li>
               <li>Frontend: {window.location.origin}</li>
               <li>Hostname: {window.location.hostname}</li>
+              <li>Total Items: {filteredProdutos.length}</li>
+              <li>Visible Items: {virtualizedData.visibleItems.length}</li>
+              <li>Scroll Top: {scrollTop}px</li>
             </ul>
           </div>
         )}
@@ -701,64 +824,153 @@ const ProdutoList = ({ searchParams }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredProdutos.map((produto, rowIndex) => (
-              <tr
-                key={`row-${produto.item_id}-${rowIndex}`}
-                className={currentCell.rowIndex === rowIndex ? 'highlighted' : ''}
-                onMouseEnter={() => handleRowMouseEnter(produto)}
-              >
-                {columns.map((column, colIndex) => {
-                  const rawValue = produto[column.id];
-                  const displayValue = formatValue(rawValue, column);
-                  const editValue = rawValue !== undefined ? rawValue.toString() : '';
-
-                  return (
-                    <td
-                      key={`${produto.item_id}-${column.id}-${rowIndex}-${colIndex}`}
-                      className={column.id === 'descricao' ? 'description-column' : ''}
-                    >
-                      {column.editable ? (
-                        <EditableCell
-                          id={`cell-${rowIndex}-${colIndex}`}
-                          value={column.noDecimals ? displayValue : (column.truncate ? displayValue : editValue)}
-                          onSave={(value) => handleCellChange(produto.item_id, column.id, value)}
-                          tabIndex={getTabIndex(rowIndex, colIndex)}
-                          onKeyNavigation={handleKeyNavigation}
-                          rowIndex={rowIndex}
-                          colIndex={colIndex}
-                          columnType={column.type}
-                        />
-                      ) : (
-                        displayValue
-                      )}
-                    </td>
-                  );
-                })}
+            {/* Espaçador superior para simular linhas não renderizadas */}
+            {virtualizedData.offsetY > 0 && (
+              <tr style={{ height: `${virtualizedData.offsetY}px` }}>
+                <td colSpan={columns.length} style={{ padding: 0, border: 'none' }} />
               </tr>
-            ))}
+            )}
+            
+            {/* Renderizar apenas as linhas visíveis */}
+            {virtualizedData.visibleItems.map((produto, virtualIndex) => {
+              const realRowIndex = virtualizedData.startIndex + virtualIndex;
+              const isHighlighted = currentCell.rowIndex === realRowIndex;
+              
+              return (
+                <tr
+                  key={`row-${produto.item_id}-${realRowIndex}`}
+                  className={isHighlighted ? 'highlighted' : ''}
+                  onMouseEnter={() => handleRowMouseEnter(produto, realRowIndex)}
+                  style={{ height: `${ITEM_HEIGHT}px` }}
+                >
+                  {columns.map((column, colIndex) => {
+                    const rawValue = produto[column.id];
+                    const displayValue = formatValue(rawValue, column);
+                    const editValue = rawValue !== undefined ? rawValue.toString() : '';
+
+                    return (
+                      <td
+                        key={`${produto.item_id}-${column.id}-${realRowIndex}-${colIndex}`}
+                        className={column.id === 'descricao' ? 'description-column' : ''}
+                        style={{
+                          position: 'relative',
+                          padding: '0 !important',
+                          height: '36px'
+                        }}
+                      >
+                        {column.editable ? (
+                          <EditableCell
+                            id={`cell-${virtualIndex}-${colIndex}`}
+                            value={editValue} // Sempre usar valor raw para edição
+                            onSave={(value) => handleCellChange(produto.item_id, column.id, value)}
+                            tabIndex={getTabIndex(virtualIndex, colIndex)}
+                            onKeyNavigation={(direction, vIndex, cIndex) => {
+                              handleKeyNavigation(direction, vIndex, cIndex);
+                            }}
+                            rowIndex={virtualIndex}
+                            colIndex={colIndex}
+                            columnType={column.type}
+                          />
+                        ) : (
+                          <div 
+                            tabIndex={getTabIndex(virtualIndex, colIndex)}
+                            onFocus={() => {
+                              setCurrentCell({ rowIndex: realRowIndex, colIndex });
+                              setSelectedProduct(produto);
+                            }}
+                            onKeyDown={(e) => {
+                              // Permitir navegação mesmo em células não editáveis
+                              switch (e.key) {
+                                case 'ArrowUp':
+                                  e.preventDefault();
+                                  handleKeyNavigation('up', virtualIndex, colIndex);
+                                  break;
+                                case 'ArrowDown':
+                                  e.preventDefault();
+                                  handleKeyNavigation('down', virtualIndex, colIndex);
+                                  break;
+                                case 'ArrowLeft':
+                                  e.preventDefault();
+                                  handleKeyNavigation('left', virtualIndex, colIndex);
+                                  break;
+                                case 'ArrowRight':
+                                  e.preventDefault();
+                                  handleKeyNavigation('right', virtualIndex, colIndex);
+                                  break;
+                              }
+                            }}
+                            style={{
+                              padding: '0.5rem 0.35rem',
+                              outline: 'none',
+                              cursor: 'pointer',
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            {displayValue}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+            
+            {/* Espaçador inferior para simular linhas não renderizadas */}
+            {virtualizedData.endIndex < filteredProdutos.length && (
+              <tr style={{ height: `${virtualizedData.totalHeight - virtualizedData.offsetY - (virtualizedData.visibleItems.length * ITEM_HEIGHT)}px` }}>
+                <td colSpan={columns.length} style={{ padding: 0, border: 'none' }} />
+              </tr>
+            )}
           </tbody>
         </table>
 
+        {/* Loading indicator */}
         <div
           ref={loadingRef}
           className="loading-more"
-          style={{ visibility: hasMore ? 'visible' : 'hidden' }}
+          style={{ 
+            visibility: hasMore ? 'visible' : 'hidden',
+            position: 'absolute',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(255, 255, 255, 0.9)',
+            padding: '10px 20px',
+            borderRadius: '5px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+          }}
         >
           {loadingMore ? 'Carregando mais produtos...' : ''}
         </div>
 
+        {/* End of list indicator */}
         {showNoMoreData && (
           <div className="end-of-list">
-            Não há mais produtos para carregar.
+            ✅ Todos os {filteredProdutos.length} produtos carregados.
+            {window.location.hostname === 'localhost' && (
+              <div style={{ fontSize: '0.8em', marginTop: '5px', color: '#666' }}>
+                Performance: Renderizando apenas {virtualizedData.visibleItems.length} de {filteredProdutos.length} itens
+              </div>
+            )}
           </div>
         )}
       </div>
 
+      {/* Status bar com informações de virtualização em desenvolvimento */}
       <div className="status-bar">
         {selectedProduct ? (
           <>
             <span className="status-code">{selectedProduct.item_id}</span>
             <span className="status-description">{selectedProduct.descricao}</span>
+            {window.location.hostname === 'localhost' && (
+              <span style={{ fontSize: '0.8em', marginLeft: '10px', color: '#ccc' }}>
+                [{virtualizedData.visibleItems.length}/{filteredProdutos.length}]
+              </span>
+            )}
           </>
         ) : (
           <span className="status-empty">Nenhum produto selecionado</span>
