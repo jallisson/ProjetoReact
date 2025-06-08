@@ -80,7 +80,7 @@ const ProdutoList = ({ searchParams }) => {
     { id: 'venda4', header: 'Venda4', editable: true, type: 'number', isDecimal: true }
   ];
 
-  // LÓGICA DE VIRTUALIZAÇÃO
+  // Lógica de virtualização
   const virtualizedData = useMemo(() => {
     if (!containerHeight || filteredProdutos.length === 0) {
       return {
@@ -108,9 +108,9 @@ const ProdutoList = ({ searchParams }) => {
     };
   }, [scrollTop, containerHeight, filteredProdutos]);
 
-  // FUNÇÃO DE FORMATAÇÃO (REVISADA)
+  // Função de formatação para exibição na tabela
   function formatarValor(valor, coluna) {
-    // console.log(`[formatarValor] Valor recebido para ${coluna.id}:`, valor, `Tipo:`, typeof valor);
+    // console.log(`[formatarValor DEBUG] START - Coluna: ${coluna.id}, Valor recebido:`, valor, `Tipo:`, typeof valor);
 
     // Se for vazio, nulo ou indefinido, retorna string vazia
     if (valor === null || valor === undefined || valor === '') {
@@ -119,51 +119,81 @@ const ProdutoList = ({ searchParams }) => {
 
     // Se a coluna não é numérica, retorna o valor como string
     if (coluna.type !== 'number') {
+      // console.log(`[formatarValor DEBUG] Coluna ${coluna.id} não numérica. Retornando:`, String(valor));
       return String(valor);
     }
 
-    // Tenta converter o valor para um número de ponto flutuante
-    // Isso é crucial caso o valor venha como string "115.237019"
-    const numero = parseFloat(valor);
+    // Garante que o valor é um número antes de formatar
+    let numeroFormatavel;
+    if (typeof valor === 'string') {
+        // Assume que strings numéricas da API usam ponto como separador decimal.
+        numeroFormatavel = parseFloat(valor);
+        // console.log(`[formatarValor DEBUG] Converteu string "${valor}" para float:`, numeroFormatavel);
+    } else {
+        // Se já é um número, usa diretamente (ou tenta garantir com Number())
+        numeroFormatavel = Number(valor); // Garante que é um primitivo Number
+        // console.log(`[formatarValor DEBUG] Valor já era numérico. Usando:`, numeroFormatavel);
+    }
 
     // Se a conversão resultar em NaN (Not a Number), retorna "0"
-    if (isNaN(numero)) {
+    if (isNaN(numeroFormatavel)) {
+      // console.log(`[formatarValor DEBUG] Valor resultou em NaN. Retornando "0".`);
       return '0';
     }
 
     // Se a coluna for marcada como isInteger ou for o fornecedor_id, formata como inteiro
     if (coluna.isInteger || coluna.id === 'fornecedor_id') {
-      return Math.floor(numero).toString();
+      // console.log(`[formatarValor DEBUG] Coluna ${coluna.id} é inteiro. Retornando:`, Math.floor(numeroFormatavel).toString());
+      return Math.floor(numeroFormatavel).toString();
     }
 
     // Se a coluna for marcada como isDecimal (custo_final, vendaX)
     if (coluna.isDecimal) {
       // Arredonda para 2 casas decimais e retorna uma string com ponto como separador
       // Ex: 115.237019 -> "115.24"
-      let formatted = numero.toFixed(2);
+      let formatted = numeroFormatavel.toFixed(2);
+      // console.log(`[formatarValor DEBUG] toFixed(2):`, formatted);
 
       // Substitui o ponto decimal por vírgula (padrão BR)
       // Ex: "115.24" -> "115,24"
       formatted = formatted.replace('.', ',');
+      // console.log(`[formatarValor DEBUG] replace(. ,):`, formatted);
 
       // Adiciona separador de milhar (ponto) para números grandes
+      // Esta regex insere um ponto a cada 3 dígitos a partir da direita da parte inteira.
       // Ex: "123456,78" -> "123.456,78"
       formatted = formatted.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+      // console.log(`[formatarValor DEBUG] Separador de milhar:`, formatted);
 
-      // console.log(`[formatarValor] Valor formatado para ${coluna.id}:`, formatted);
+      // console.log(`[formatarValor DEBUG] END - Valor formatado final para ${coluna.id}:`, formatted);
       return formatted;
     }
 
     // Caso padrão para outros números, apenas converte para string
-    return String(numero);
+    // console.log(`[formatarValor DEBUG] Caso padrão. Retornando:`, String(numeroFormatavel));
+    return String(numeroFormatavel);
   }
 
 
   // Função para converter string para número de forma segura
   const safeParseFloat = (value) => {
     if (value === null || value === undefined || value === '') return 0;
-    const parsed = parseFloat(value);
-    return isNaN(parsed) ? 0 : parsed;
+
+    // Se o valor já for um número, retorna-o diretamente.
+    if (typeof value === 'number') {
+        return value;
+    }
+
+    // Se for uma string, tenta limpar e converter.
+    if (typeof value === 'string') {
+        // Remove qualquer caractere que não seja dígito, ponto ou sinal de menos.
+        // Assume que o ponto é o separador decimal na string bruta da API.
+        const cleanedValue = value.replace(/[^\d.\-]/g, '');
+        const parsed = parseFloat(cleanedValue);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    return 0; // Para qualquer outro tipo de valor inesperado
   };
 
   // Função para testar conectividade da API
@@ -197,9 +227,9 @@ const ProdutoList = ({ searchParams }) => {
   // Função para normalizar dados do backend
   const normalizeProductData = (backendItems) => {
     console.log('🔄 Normalizando dados do backend...');
-    console.log('📋 Exemplo de item bruto:', backendItems[0]);
+    console.log('📋 Exemplo de item bruto recebido da API:', backendItems[0]);
 
-    return backendItems.map(item => {
+    const normalized = backendItems.map(item => {
       const produto = {};
 
       // Campos básicos
@@ -228,6 +258,9 @@ const ProdutoList = ({ searchParams }) => {
 
       return produto;
     });
+
+    console.log('✅ Exemplo de item normalizado (primeiro):', normalized[0]);
+    return normalized;
   };
 
   // Função para buscar dados iniciais
@@ -575,7 +608,7 @@ const ProdutoList = ({ searchParams }) => {
             if (hasMore && !loadingMore) {
               fetchMoreProdutos();
             }
-          }, 100);
+          }, 0); // Ajustei para 0 ou um tempo muito pequeno
         }
         break;
       case 'left': {
@@ -835,7 +868,8 @@ const ProdutoList = ({ searchParams }) => {
                         {column.editable ? (
                           <EditableCell
                             id={`cell-${realRowIndex}-${colIndex}`}
-                            value={valorParaEdicao} // Passar o valor bruto como string
+                            value={valorParaEdicao} // Passar o valor bruto para edição
+                            displayValue={valorFormatado} // Passar o valor formatado para exibição
                             onSave={(value) => handleCellChange(produto.item_id, column.id, value)}
                             tabIndex={getTabIndex(virtualIndex, colIndex)}
                             onKeyNavigation={(direction, vIndex, cIndex) => {

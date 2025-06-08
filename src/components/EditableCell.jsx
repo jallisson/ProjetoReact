@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const EditableCell = ({
-  value,
+  value, // Valor bruto para edição (usado para salvar e como original)
+  displayValue, // Valor formatado para exibição (usado para mostrar na célula e no input ao editar)
   onSave,
   tabIndex,
   onKeyNavigation,
@@ -9,21 +10,23 @@ const EditableCell = ({
   colIndex,
   columnType = 'text',
   id,
-  isFocused // NEW PROP
+  isFocused
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [inputValue, setInputValue] = useState(value || '');
-  const [originalValue, setOriginalValue] = useState(value || '');
+  // Inicializa inputValue com displayValue para que o valor formatado apareça ao editar
+  const [inputValue, setInputValue] = useState(displayValue || '');
+  const [originalValue, setOriginalValue] = useState(value || ''); // originalValue continua sendo o valor bruto
   const cellRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Atualizar valores quando a prop mudar
+  // Atualizar valores quando as props mudarem
   useEffect(() => {
-    setInputValue(value || '');
+    // Quando 'value' muda (e portanto 'displayValue' também), atualiza ambos os estados
+    setInputValue(displayValue || '');
     setOriginalValue(value || '');
-  }, [value]);
+  }, [value, displayValue]); // Dependências ajustadas
 
-  // Manage focus for the cell itself when it becomes the currentCell
+  // Gerencia o foco do elemento da célula quando ela se torna a célula atual
   useEffect(() => {
     if (isFocused && !isEditing) {
       if (cellRef.current) {
@@ -34,14 +37,14 @@ const EditableCell = ({
 
   // Salvar alterações - com tratamento de vírgulas brasileiras
   const saveChanges = useCallback(() => {
-    if (inputValue !== originalValue) {
+    // Comparar com o valor original bruto, não com o formatado
+    if (inputValue !== (originalValue !== null && originalValue !== undefined ? String(originalValue) : '')) {
       let valueToSave = inputValue;
 
-      // Para campos numéricos, converter vírgula para ponto
+      // Para campos numéricos, converter vírgula para ponto antes de salvar
       if (columnType === 'number') {
-        // Limpar formatação e converter vírgula para ponto
         const cleanValue = inputValue.toString()
-          .replace(/[^\d,.\-]/g, '') // Remove tudo exceto dígitos, vírgula, ponto e sinal
+          .replace(/[^0-9,.\-]/g, '') // Remove tudo exceto dígitos, vírgula, ponto e sinal
           .replace(',', '.'); // Substitui vírgula por ponto
 
         const numValue = parseFloat(cleanValue);
@@ -55,36 +58,47 @@ const EditableCell = ({
 
   // Cancelar edição
   const cancelEditing = useCallback(() => {
-    setInputValue(originalValue);
+    setInputValue(displayValue || ''); // Ao cancelar, volta para o valor formatado para exibição
     setIsEditing(false);
     if (cellRef.current) {
-      cellRef.current.focus();
+      cellRef.current.focus(); // Retorna o foco para a célula não editável
     }
-  }, [originalValue]);
+  }, [displayValue]);
 
   // Iniciar edição
-  const startEditing = useCallback((initialValue = null) => {
+  const startEditing = useCallback((initialChar = null) => {
     setIsEditing(true);
+    let newInputValue;
 
-    if (initialValue !== null) {
-      setInputValue(initialValue);
+    // LÓGICA DE INICIALIZAÇÃO DE INPUT VALUE (CORRIGIDA)
+    if (initialChar !== null && typeof initialChar === 'string') {
+        // Se um caractere inicial foi digitado
+        if (displayValue === null || displayValue === undefined || displayValue === '' || displayValue === '0') {
+            // Se o displayValue for vazio ou zero, sobrescreve com o caractere digitado
+            newInputValue = initialChar;
+        } else {
+            // Caso contrário, APENSA o caractere digitado ao displayValue
+            newInputValue = displayValue + initialChar;
+        }
+    } else {
+        // Se não houver caractere inicial (ex: Enter, duplo clique), usa o displayValue completo
+        newInputValue = displayValue || '';
     }
+    setInputValue(newInputValue);
 
-    // Focar no input
+    // Focar no input após o render e posicionar o cursor
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
-        if (initialValue !== null) {
-          const length = initialValue.length;
-          inputRef.current.setSelectionRange(length, length);
-        } else {
-          inputRef.current.select();
-        }
+        // Posicionar o cursor no final do texto
+        const length = inputRef.current.value.length;
+        inputRef.current.setSelectionRange(length, length);
       }
     }, 0);
-  }, []);
+  }, [displayValue]); // Dependência ajustada para displayValue
 
-  // Handler para blur do input - SIMPLIFICADO
+
+  // Handler para blur do input
   const handleBlur = useCallback(() => {
     if (isEditing) {
       saveChanges();
@@ -97,9 +111,10 @@ const EditableCell = ({
   }, []);
 
   // Handler para clique simples
-  const handleClick = useCallback((e) => {
+  const handleClick = useCallback(() => {
+    // Apenas foca na célula, não inicia edição com clique simples
     if (cellRef.current && !isEditing) {
-      cellRef.current.focus();
+        cellRef.current.focus();
     }
   }, [isEditing]);
 
@@ -112,45 +127,37 @@ const EditableCell = ({
     }
   }, [isEditing, startEditing]);
 
-  // Handler para keydown na célula
+  // Handler para keydown na célula (quando não está editando)
   const handleCellKeyDown = useCallback((e) => {
-    if (isEditing) return;
+    if (isEditing) return; // Se já estiver editando, ignora
 
     switch (e.key) {
       case 'ArrowUp':
-        e.preventDefault();
-        onKeyNavigation('up', rowIndex, colIndex);
-        break;
       case 'ArrowDown':
-        e.preventDefault();
-        onKeyNavigation('down', rowIndex, colIndex);
-        break;
       case 'ArrowLeft':
-        e.preventDefault();
-        onKeyNavigation('left', rowIndex, colIndex);
-        break;
       case 'ArrowRight':
-        e.preventDefault();
-        onKeyNavigation('right', rowIndex, colIndex);
+        e.preventDefault(); // Previne o comportamento padrão do navegador
+        onKeyNavigation(e.key.replace('Arrow', '').toLowerCase(), rowIndex, colIndex);
         break;
       case 'Enter':
         e.preventDefault();
-        startEditing();
+        startEditing(); // Inicia a edição com Enter
         break;
       case 'Tab':
-        // Deixar Tab funcionar naturalmente
+        // Deixar o Tab funcionar naturalmente para navegar entre os elementos focusable
         break;
       default:
-        // Se digitar qualquer caractere alfanumérico, iniciar edição
-        if (/^[a-zA-Z0-9\s]$/.test(e.key)) {
-          e.preventDefault();
-          startEditing(e.key);
+        // Se digitar qualquer caractere alfanumérico ou pontuação, iniciar edição
+        // Permite sobrescrever o valor existente apenas quando se está editando pela primeira vez.
+        if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            e.preventDefault();
+            startEditing(e.key); // Inicia a edição e preenche com a letra digitada
         }
         break;
     }
   }, [isEditing, onKeyNavigation, rowIndex, colIndex, startEditing]);
 
-  // Handler para keydown no input
+  // Handler para keydown no input (quando está editando)
   const handleInputKeyDown = useCallback((e) => {
     switch (e.key) {
       case 'Enter':
@@ -178,13 +185,13 @@ const EditableCell = ({
       <input
         ref={inputRef}
         className="cell-input"
-        value={inputValue}
+        value={inputValue} // Usa o valor que o usuário está digitando (que agora é o formatado ou o caractere inicial)
         onChange={handleInputChange}
         onBlur={handleBlur}
         onKeyDown={handleInputKeyDown}
         tabIndex={tabIndex}
         id={id}
-        type="text" // Usar text para permitir vírgulas
+        type={columnType === 'number' ? 'text' : 'text'} // Manter como 'text' para permitir vírgulas e pontos para o usuário
         autoFocus
         style={{
           textAlign: columnType === 'number' ? 'right' : 'left'
@@ -193,7 +200,7 @@ const EditableCell = ({
     );
   }
 
-  // Renderizar célula normal
+  // Renderizar célula normal (não editando)
   return (
     <div
       ref={cellRef}
@@ -211,12 +218,12 @@ const EditableCell = ({
         pointerEvents: 'auto',
         position: 'relative',
         zIndex: 1,
-        // Add highlight style based on isFocused
+        // Adiciona estilo de destaque baseado no isFocused
         backgroundColor: isFocused ? 'var(--highlight-bg-color, #e0f7fa)' : 'transparent',
         border: isFocused ? '1px solid var(--highlight-border-color, #00bcd4)' : '1px solid transparent'
       }}
     >
-      {value || ""}
+      {displayValue || ""} {/* Exibe o valor formatado */}
     </div>
   );
 };
