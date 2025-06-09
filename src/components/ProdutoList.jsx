@@ -18,6 +18,11 @@ const getApiUrl = () => {
     return 'https://projetoreact-1.onrender.com';
   }
 
+  if (hostname.includes('railway.app')) {
+    console.log('🚀 Ambiente: PRODUÇÃO (Render)');
+    return 'https://projetoreact-production.up.railway.app';
+  }
+
   console.log('🌍 Ambiente: PRODUÇÃO (Outro)');
   return `${protocol}//${hostname}:5000`;
 };
