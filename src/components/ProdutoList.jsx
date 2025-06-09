@@ -951,25 +951,25 @@ const ProdutoList = ({ searchParams }) => {
           </tbody>
         </table>
 
-        {/* Loading indicator */}
-        <div
-          ref={loadingRef}
-          className="loading-more"
-          style={{
-            visibility: hasMore ? 'visible' : 'hidden',
-            position: 'absolute',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(255, 255, 255, 0.9)',
-            padding: '10px 20px',
-            borderRadius: '5px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-          }}
-        >
-          {loadingMore ? 'Carregando mais produtos...' : ''}
-        </div>
-
+        {/* Loading indicator - só renderizar quando necessário */}
+        {(hasMore && loadingMore) && (
+          <div
+            ref={loadingRef}
+            className="loading-more"
+            style={{
+              position: 'absolute',
+              bottom: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'rgba(255, 255, 255, 0.9)',
+              padding: '10px 20px',
+              borderRadius: '5px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+            }}
+          >
+            Carregando mais produtos...
+          </div>
+        )}
         {/* End of list indicator */}
         {showNoMoreData && (
           <div className="end-of-list">

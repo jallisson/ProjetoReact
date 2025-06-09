@@ -228,7 +228,7 @@ const EditableCell = ({
         position: 'relative',
         zIndex: 1,
         // Adiciona estilo de destaque baseado no isFocused
-        backgroundColor: isFocused ? 'var(--highlight-bg-color, #e0f7fa)' : 'transparent',
+        backgroundColor: isFocused ? 'var(--highlight-bg-color)' : 'transparent',
         border: isFocused ? '1px solid var(--highlight-border-color, #00bcd4)' : '1px solid transparent'
       }}
     >
