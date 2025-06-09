@@ -3,28 +3,39 @@ import EditableCell from './EditableCell';
 import axios from 'axios';
 import './StatusBar.css';
 
-// Configuração da API
+// Configuração da API corrigida
 const getApiUrl = () => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
+  const port = window.location.port;
 
+  console.log('🔍 Detectando ambiente:');
+  console.log('  Hostname:', hostname);
+  console.log('  Protocol:', protocol);
+  console.log('  Port:', port);
+
+  // Desenvolvimento local
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     console.log('🔧 Ambiente: DESENVOLVIMENTO');
     return 'http://localhost:5000';
   }
 
+  // Render (backend separado)
   if (hostname.includes('onrender.com')) {
-    console.log('🚀 Ambiente: PRODUÇÃO (Render)');
+    console.log('🚀 Ambiente: PRODUÇÃO (Render - Backend separado)');
     return 'https://projetoreact-1.onrender.com';
   }
 
-  if (hostname.includes('railway.app')) {
-    console.log('🚀 Ambiente: PRODUÇÃO (Render)');
-    return 'https://projetoreact-production.up.railway.app';
+  // Railway (aplicação única - CORREÇÃO AQUI)
+  if (hostname.includes('railway.app') || hostname.includes('up.railway.app')) {
+    console.log('🚂 Ambiente: PRODUÇÃO (Railway - App única)');
+    // No Railway, o backend está na mesma URL que o frontend
+    return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
   }
 
+  // Outros ambientes de produção
   console.log('🌍 Ambiente: PRODUÇÃO (Outro)');
-  return `${protocol}//${hostname}:5000`;
+  return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
 };
 
 const API_URL = getApiUrl();
@@ -131,13 +142,13 @@ const ProdutoList = ({ searchParams }) => {
     // Garante que o valor é um número antes de formatar
     let numeroFormatavel;
     if (typeof valor === 'string') {
-        // Assume que strings numéricas da API usam ponto como separador decimal.
-        numeroFormatavel = parseFloat(valor);
-        // console.log(`[formatarValor DEBUG] Converteu string "${valor}" para float:`, numeroFormatavel);
+      // Assume que strings numéricas da API usam ponto como separador decimal.
+      numeroFormatavel = parseFloat(valor);
+      // console.log(`[formatarValor DEBUG] Converteu string "${valor}" para float:`, numeroFormatavel);
     } else {
-        // Se já é um número, usa diretamente (ou tenta garantir com Number())
-        numeroFormatavel = Number(valor); // Garante que é um primitivo Number
-        // console.log(`[formatarValor DEBUG] Valor já era numérico. Usando:`, numeroFormatavel);
+      // Se já é um número, usa diretamente (ou tenta garantir com Number())
+      numeroFormatavel = Number(valor); // Garante que é um primitivo Number
+      // console.log(`[formatarValor DEBUG] Valor já era numérico. Usando:`, numeroFormatavel);
     }
 
     // Se a conversão resultar em NaN (Not a Number), retorna "0"
@@ -186,16 +197,16 @@ const ProdutoList = ({ searchParams }) => {
 
     // Se o valor já for um número, retorna-o diretamente.
     if (typeof value === 'number') {
-        return value;
+      return value;
     }
 
     // Se for uma string, tenta limpar e converter.
     if (typeof value === 'string') {
-        // Remove qualquer caractere que não seja dígito, ponto ou sinal de menos.
-        // Assume que o ponto é o separador decimal na string bruta da API.
-        const cleanedValue = value.replace(/[^\d.\-]/g, '');
-        const parsed = parseFloat(cleanedValue);
-        return isNaN(parsed) ? 0 : parsed;
+      // Remove qualquer caractere que não seja dígito, ponto ou sinal de menos.
+      // Assume que o ponto é o separador decimal na string bruta da API.
+      const cleanedValue = value.replace(/[^\d.\-]/g, '');
+      const parsed = parseFloat(cleanedValue);
+      return isNaN(parsed) ? 0 : parsed;
     }
 
     return 0; // Para qualquer outro tipo de valor inesperado
