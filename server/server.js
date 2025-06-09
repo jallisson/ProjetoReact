@@ -1,21 +1,58 @@
 const express = require('express');
 const cors = require('cors');
-const { pool, testConnection } = require('./config/db');
 const path = require('path');
+const { pool, testConnection } = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Log do ambiente
+console.log('🌍 Ambiente:', process.env.NODE_ENV || 'development');
+console.log('🚂 Railway:', process.env.RAILWAY_ENVIRONMENT ? 'SIM' : 'NÃO');
+console.log('🚀 Porta:', PORT);
+
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
+
+// ===============================================
+// SERVIR ARQUIVOS ESTÁTICOS DO FRONTEND (RAILWAY)
+// ===============================================
+
+// Em produção ou Railway, servir o frontend buildado
+if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+  const frontendPath = path.join(__dirname, '..', 'dist');
+  console.log('📁 Servindo frontend estático de:', frontendPath);
+  
+  // Verificar se a pasta dist existe
+  const fs = require('fs');
+  if (fs.existsSync(frontendPath)) {
+    console.log('✅ Pasta dist encontrada');
+    
+    // Servir arquivos estáticos
+    app.use(express.static(frontendPath, {
+      index: ['index.html'],
+      fallthrough: true
+    }));
+    
+    console.log('✅ Middleware de arquivos estáticos configurado');
+  } else {
+    console.log('❌ Pasta dist não encontrada em:', frontendPath);
+  }
+}
 
 // Teste de conexão na inicialização
 testConnection()
   .then(connected => {
     if (!connected) {
       console.error('❌ Não foi possível conectar ao banco de dados. Verifique suas configurações.');
-      process.exit(1);
+      // Em produção, não sair do processo - continuar sem DB para debug
+      if (process.env.NODE_ENV !== 'production') {
+        process.exit(1);
+      }
     }
     console.log('🎉 Sistema iniciado com sucesso!');
   });
@@ -61,9 +98,14 @@ const validateData = (req, res, next) => {
 app.use('/api/produtos/:id', validateData);
 app.use('/api/produtos', validateData);
 
+// ===============================================
+// ROTAS DA API
+// ===============================================
+
 // Rota básica de produtos com paginação
 app.get('/api/produtos', async (req, res) => {
   try {
+    console.log('📡 GET /api/produtos');
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 25;
     const offset = (page - 1) * limit;
@@ -85,6 +127,8 @@ app.get('/api/produtos', async (req, res) => {
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
 
+    console.log(`✅ Retornando ${rows.length} produtos`);
+
     res.json({
       items: rows,
       pagination: {
@@ -95,7 +139,7 @@ app.get('/api/produtos', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Erro ao buscar produtos:', error);
+    console.error('❌ Erro ao buscar produtos:', error);
     res.status(500).json({ message: 'Erro ao buscar produtos' });
   }
 });
@@ -103,6 +147,7 @@ app.get('/api/produtos', async (req, res) => {
 // Rota de pesquisa com paginação
 app.get('/api/produtos/search', async (req, res) => {
   try {
+    console.log('🔍 GET /api/produtos/search');
     const termo = req.query.termo || '';
     const campo = req.query.campo || 'descricao';
     const modo = req.query.modo || 'contém';
@@ -151,6 +196,8 @@ app.get('/api/produtos/search', async (req, res) => {
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
 
+    console.log(`✅ Pesquisa retornou ${rows.length} produtos`);
+
     res.json({
       items: rows,
       pagination: {
@@ -161,7 +208,7 @@ app.get('/api/produtos/search', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Erro ao pesquisar produtos:', error);
+    console.error('❌ Erro ao pesquisar produtos:', error);
     res.status(500).json({ message: 'Erro ao pesquisar produtos' });
   }
 });
@@ -169,6 +216,7 @@ app.get('/api/produtos/search', async (req, res) => {
 // Rota para atualizar produto
 app.put('/api/produtos/:id', async (req, res) => {
   try {
+    console.log(`✏️  PUT /api/produtos/${req.params.id}`);
     const { id } = req.params;
 
     if (Object.keys(req.body).length === 1) {
@@ -236,29 +284,115 @@ app.put('/api/produtos/:id', async (req, res) => {
       WHERE item_id = ?
     `, [id]);
 
+    console.log(`✅ Produto ${id} atualizado`);
     res.json(updatedProduct[0]);
   } catch (error) {
-    console.error('Erro ao atualizar produto:', error);
+    console.error('❌ Erro ao atualizar produto:', error);
     res.status(500).json({ message: `Erro ao atualizar produto: ${error.message}` });
   }
 });
 
-// Rota de teste
+// ===============================================
+// HEALTH CHECK E ROTA DE TESTE
+// ===============================================
+
+// Rota de health check
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    railway: !!process.env.RAILWAY_ENVIRONMENT,
+    port: PORT
+  });
+});
+
+// Rota de teste da API
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: '🎉 API funcionando!',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    railway: !!process.env.RAILWAY_ENVIRONMENT
+  });
+});
+
+// ===============================================
+// ROTA RAIZ - DIFERENTE PARA PRODUÇÃO E DEV
+// ===============================================
+
 app.get('/', (req, res) => {
+  // Se for produção/Railway e tem frontend buildado, servir o index.html
+  if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+    const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
+    const fs = require('fs');
+    
+    if (fs.existsSync(indexPath)) {
+      console.log('📄 Servindo index.html da raiz');
+      return res.sendFile(indexPath);
+    } else {
+      console.log('❌ index.html não encontrado, servindo JSON de fallback');
+      return res.json({
+        message: '🎉 API de Gerenciamento de Produtos funcionando!',
+        error: 'Frontend não encontrado - verifique se o build foi feito',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development',
+        railway: !!process.env.RAILWAY_ENVIRONMENT
+      });
+    }
+  }
+  
+  // Desenvolvimento - retornar JSON
   res.json({
     message: '🎉 API de Gerenciamento de Produtos funcionando!',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    render: !!process.env.RENDER
+    railway: !!process.env.RAILWAY_ENVIRONMENT
   });
 });
 
-// Iniciar servidor
-app.listen(PORT, () => {
+// ===============================================
+// SPA FALLBACK (DEVE SER A ÚLTIMA ROTA)
+// ===============================================
+
+// Para todas as outras rotas que não são da API, servir o index.html (SPA)
+if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+  app.get('*', (req, res) => {
+    // Não interceptar rotas da API
+    if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
+      return res.status(404).json({ message: 'Rota da API não encontrada' });
+    }
+    
+    const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
+    const fs = require('fs');
+    
+    if (fs.existsSync(indexPath)) {
+      console.log(`🔄 SPA Fallback: ${req.path} -> index.html`);
+      res.sendFile(indexPath);
+    } else {
+      console.log(`❌ SPA Fallback falhou: index.html não encontrado para ${req.path}`);
+      res.status(404).json({ 
+        message: 'Página não encontrada',
+        error: 'Frontend não foi buildado corretamente'
+      });
+    }
+  });
+}
+
+// ===============================================
+// INICIAR SERVIDOR
+// ===============================================
+
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`🌍 Acesse: http://localhost:${PORT}`);
+  console.log(`🌍 URL: http://0.0.0.0:${PORT}`);
   
-  if (process.env.RENDER) {
-    console.log('🎉 Deploy no Render concluído com sucesso!');
+  if (process.env.RAILWAY_ENVIRONMENT) {
+    console.log('🚂 Deploy no Railway concluído com sucesso!');
+    console.log('📱 Frontend e Backend integrados em uma única aplicação');
+  }
+  
+  if (process.env.NODE_ENV === 'production') {
+    console.log('🎉 Ambiente de produção ativo');
   }
 });

@@ -1,10 +1,10 @@
 // server/config/env-loader.js
-// Versão otimizada para Railway que prioriza variáveis de ambiente do sistema
+// Versão corrigida que funciona tanto local quanto Railway
 
 const fs = require('fs');
 const path = require('path');
 
-class RailwayEnvLoader {
+class EnvLoader {
   constructor() {
     this.loaded = false;
     this.config = {};
@@ -19,7 +19,7 @@ class RailwayEnvLoader {
     console.log('🌍 NODE_ENV:', process.env.NODE_ENV || 'development');
     console.log('🚂 RAILWAY_ENVIRONMENT:', process.env.RAILWAY_ENVIRONMENT ? 'SIM' : 'NÃO');
 
-    // SEMPRE usar variáveis de ambiente do sistema primeiro
+    // SEMPRE carregar do sistema primeiro
     this.config = this.loadFromSystemEnv();
 
     // Se alguma variável crítica estiver faltando e não for Railway, tentar .env
@@ -29,9 +29,9 @@ class RailwayEnvLoader {
       const envPath = this.findEnvFile();
       if (envPath) {
         const envConfig = this.parseEnvFile(envPath);
-        // Mesclar apenas as variáveis que estão faltando
-        missingCritical.forEach(key => {
-          if (envConfig[key]) {
+        // Mesclar as variáveis do .env
+        Object.keys(envConfig).forEach(key => {
+          if (envConfig[key] && !this.config[key]) {
             this.config[key] = envConfig[key];
           }
         });
@@ -48,7 +48,7 @@ class RailwayEnvLoader {
     return this.config;
   }
 
-  // Carregar SEMPRE do sistema de variáveis de ambiente
+  // Carregar do sistema de variáveis de ambiente
   loadFromSystemEnv() {
     console.log('📊 Carregando variáveis de ambiente do sistema...');
     
@@ -76,10 +76,10 @@ class RailwayEnvLoader {
   // Verificar variáveis críticas ausentes
   checkMissingCritical() {
     const critical = ['DB_HOST', 'DB_USER', 'DB_NAME'];
-    return critical.filter(key => !process.env[key]);
+    return critical.filter(key => !process.env[key] && !this.config[key]);
   }
 
-  // Encontra o arquivo .env correto (apenas para desenvolvimento)
+  // Encontra o arquivo .env correto
   findEnvFile() {
     const possiblePaths = [
       path.join(__dirname, '..', '.env'),
@@ -138,11 +138,12 @@ class RailwayEnvLoader {
     }
   }
 
-  // Define as variáveis no process.env (SEM sobrescrever se já existir)
+  // Define as variáveis no process.env (CORRIGIDO)
   setProcessEnv(config) {
     Object.keys(config).forEach(key => {
-      if (config[key] && !process.env[key]) {
-        process.env[key] = config[key];
+      const value = config[key];
+      if (value !== undefined && value !== null && !process.env[key]) {
+        process.env[key] = String(value); // Garantir que seja string
         console.log(`🔧 ${key} definido no process.env`);
       } else if (process.env[key]) {
         console.log(`⚠️ ${key} já existe no process.env, mantendo valor do sistema`);
@@ -186,7 +187,21 @@ class RailwayEnvLoader {
         console.log('🚂 Railway detectado, aplicando configuração de emergência...');
         this.applyDefaults();
       } else {
-        throw new Error(`Configuração incompleta: ${missing.join(', ')}`);
+        // Em desenvolvimento, mostrar as variáveis que temos
+        console.log('🔍 DEBUG - Variáveis atuais no process.env:');
+        required.forEach(key => {
+          console.log(`   ${key}: ${process.env[key] || 'UNDEFINED'}`);
+        });
+        
+        // Ainda assim aplicar defaults para não quebrar
+        console.log('🔧 Aplicando defaults mesmo em desenvolvimento...');
+        this.applyDefaults();
+        
+        // Verificar novamente
+        const stillMissing = required.filter(key => !process.env[key]);
+        if (stillMissing.length > 0) {
+          throw new Error(`Configuração incompleta: ${stillMissing.join(', ')}`);
+        }
       }
     }
 
@@ -207,7 +222,7 @@ class RailwayEnvLoader {
 
     return new Promise((resolve) => {
       const socket = new net.Socket();
-      const timeout = 10000; // 10 segundos
+      const timeout = 10000;
 
       socket.setTimeout(timeout);
       
@@ -248,7 +263,7 @@ class RailwayEnvLoader {
 }
 
 // Instância singleton
-const envLoader = new RailwayEnvLoader();
+const envLoader = new EnvLoader();
 
 // Carregar imediatamente
 envLoader.forceLoad();
