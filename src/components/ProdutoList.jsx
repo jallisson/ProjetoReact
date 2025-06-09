@@ -126,90 +126,54 @@ const ProdutoList = ({ searchParams }) => {
 
   // Função de formatação para exibição na tabela
   function formatarValor(valor, coluna) {
-    // console.log(`[formatarValor DEBUG] START - Coluna: ${coluna.id}, Valor recebido:`, valor, `Tipo:`, typeof valor);
-
-    // Se for vazio, nulo ou indefinido, retorna string vazia
     if (valor === null || valor === undefined || valor === '') {
       return '';
     }
 
-    // Se a coluna não é numérica, retorna o valor como string
     if (coluna.type !== 'number') {
-      // console.log(`[formatarValor DEBUG] Coluna ${coluna.id} não numérica. Retornando:`, String(valor));
       return String(valor);
     }
 
-    // Garante que o valor é um número antes de formatar
     let numeroFormatavel;
     if (typeof valor === 'string') {
-      // Assume que strings numéricas da API usam ponto como separador decimal.
       numeroFormatavel = parseFloat(valor);
-      // console.log(`[formatarValor DEBUG] Converteu string "${valor}" para float:`, numeroFormatavel);
     } else {
-      // Se já é um número, usa diretamente (ou tenta garantir com Number())
-      numeroFormatavel = Number(valor); // Garante que é um primitivo Number
-      // console.log(`[formatarValor DEBUG] Valor já era numérico. Usando:`, numeroFormatavel);
+      numeroFormatavel = Number(valor);
     }
 
-    // Se a conversão resultar em NaN (Not a Number), retorna "0"
     if (isNaN(numeroFormatavel)) {
-      // console.log(`[formatarValor DEBUG] Valor resultou em NaN. Retornando "0".`);
       return '0';
     }
 
-    // Se a coluna for marcada como isInteger ou for o fornecedor_id, formata como inteiro
     if (coluna.isInteger || coluna.id === 'fornecedor_id') {
-      // console.log(`[formatarValor DEBUG] Coluna ${coluna.id} é inteiro. Retornando:`, Math.floor(numeroFormatavel).toString());
       return Math.floor(numeroFormatavel).toString();
     }
 
-    // Se a coluna for marcada como isDecimal (custo_final, vendaX)
     if (coluna.isDecimal) {
-      // Arredonda para 2 casas decimais e retorna uma string com ponto como separador
-      // Ex: 115.237019 -> "115.24"
       let formatted = numeroFormatavel.toFixed(2);
-      // console.log(`[formatarValor DEBUG] toFixed(2):`, formatted);
-
-      // Substitui o ponto decimal por vírgula (padrão BR)
-      // Ex: "115.24" -> "115,24"
       formatted = formatted.replace('.', ',');
-      // console.log(`[formatarValor DEBUG] replace(. ,):`, formatted);
-
-      // Adiciona separador de milhar (ponto) para números grandes
-      // Esta regex insere um ponto a cada 3 dígitos a partir da direita da parte inteira.
-      // Ex: "123456,78" -> "123.456,78"
       formatted = formatted.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
-      // console.log(`[formatarValor DEBUG] Separador de milhar:`, formatted);
-
-      // console.log(`[formatarValor DEBUG] END - Valor formatado final para ${coluna.id}:`, formatted);
       return formatted;
     }
 
-    // Caso padrão para outros números, apenas converte para string
-    // console.log(`[formatarValor DEBUG] Caso padrão. Retornando:`, String(numeroFormatavel));
     return String(numeroFormatavel);
   }
-
 
   // Função para converter string para número de forma segura
   const safeParseFloat = (value) => {
     if (value === null || value === undefined || value === '') return 0;
 
-    // Se o valor já for um número, retorna-o diretamente.
     if (typeof value === 'number') {
       return value;
     }
 
-    // Se for uma string, tenta limpar e converter.
     if (typeof value === 'string') {
-      // Remove qualquer caractere que não seja dígito, ponto ou sinal de menos.
-      // Assume que o ponto é o separador decimal na string bruta da API.
       const cleanedValue = value.replace(/[^\d.\-]/g, '');
       const parsed = parseFloat(cleanedValue);
       return isNaN(parsed) ? 0 : parsed;
     }
 
-    return 0; // Para qualquer outro tipo de valor inesperado
+    return 0;
   };
 
   // Função para testar conectividade da API
@@ -251,7 +215,6 @@ const ProdutoList = ({ searchParams }) => {
       // Campos básicos
       produto.item_id = item.item_id || item.id || '';
       produto.descricao = item.descricao || '';
-      // Garantir que fornecedor_id seja um número
       produto.fornecedor_id = safeParseFloat(item.fornecedor_id);
       produto.situacao = item.ativo || 'A';
 
@@ -290,7 +253,6 @@ const ProdutoList = ({ searchParams }) => {
       console.log('🚀 Iniciando busca de produtos...');
       console.log('📋 Parâmetros de busca:', searchParams);
 
-      // Teste de conectividade
       const isApiOnline = await testApiConnection();
       if (!isApiOnline) {
         setError('❌ API não está respondendo. Verifique sua conexão ou se o servidor está online.');
@@ -312,19 +274,16 @@ const ProdutoList = ({ searchParams }) => {
           console.log(`🔎 Busca com filtro: ${searchParams.filter} = "${searchTerm}" (modo automático: ${searchParams.mode})`);
 
           if (searchParams.filter === 'codigo') {
-            // Código: sempre busca EXATA
             response = await axios.get(`/api/produtos/search`, {
               params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' },
               timeout: 15000
             });
           } else if (searchParams.filter === 'descricao') {
-            // Descrição: sempre busca CONTÉM (LIKE %termo%)
             response = await axios.get(`/api/produtos/search`, {
               params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'contém' },
               timeout: 15000
             });
           } else if (searchParams.filter === 'fornecedor') {
-            // Fornecedor: sempre busca EXATA
             response = await axios.get(`/api/produtos/search`, {
               params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' },
               timeout: 15000
@@ -386,14 +345,12 @@ const ProdutoList = ({ searchParams }) => {
         return;
       }
 
-      // Normalizar dados
       console.log('🔄 Normalizando dados...');
       const produtosNormalizados = normalizeProductData(data);
       console.log('✅ Primeiro produto normalizado:', produtosNormalizados[0]);
 
       setProdutos(produtosNormalizados);
 
-      // Aplicar filtros locais se necessário
       if ((searchParams.filter === 'codigo' && searchParams.term) ||
         (searchParams.filter === 'moto' && searchParams.term)) {
 
@@ -457,7 +414,6 @@ const ProdutoList = ({ searchParams }) => {
         sort: 'asc'
       };
 
-      // Para pesquisas locais, não fazer scroll infinito
       if (searchParams.filter === 'moto' || searchParams.filter === 'codigo') {
         setHasMore(false);
         setLoadingMore(false);
@@ -471,19 +427,16 @@ const ProdutoList = ({ searchParams }) => {
         console.log(`🔎 Busca com filtro: ${searchParams.filter} = "${searchTerm}" (modo automático: ${searchParams.mode})`);
 
         if (searchParams.filter === 'codigo') {
-          // Código: sempre busca EXATA
           response = await axios.get(`/api/produtos/search`, {
             params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' },
             timeout: 15000
           });
         } else if (searchParams.filter === 'descricao') {
-          // Descrição: sempre busca CONTÉM (LIKE %termo%)
           response = await axios.get(`/api/produtos/search`, {
             params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'contém' },
             timeout: 15000
           });
         } else if (searchParams.filter === 'fornecedor') {
-          // Fornecedor: sempre busca EXATA
           response = await axios.get(`/api/produtos/search`, {
             params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' },
             timeout: 15000
@@ -514,10 +467,8 @@ const ProdutoList = ({ searchParams }) => {
         return;
       }
 
-      // Normalizar novos dados
       const produtosNormalizados = normalizeProductData(data);
 
-      // Filtrar duplicados
       const produtosExistentesIds = new Set(produtos.map(p => p.item_id?.toString()));
       const novosProdutos = produtosNormalizados.filter(produto => {
         const id = produto.item_id?.toString();
@@ -578,7 +529,6 @@ const ProdutoList = ({ searchParams }) => {
         const newScrollTop = container.scrollTop;
         setScrollTop(newScrollTop);
 
-        // Carregar mais produtos quando próximo do fim
         const scrollHeight = container.scrollHeight;
         const clientHeight = container.clientHeight;
         const scrollPosition = newScrollTop + clientHeight;
@@ -616,9 +566,18 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [filteredProdutos, selectedProduct]);
 
-  // Navigation handler
+  // ========================================
+  // NAVEGAÇÃO POR TECLADO CORRIGIDA
+  // ========================================
   const handleKeyNavigation = useCallback((direction, virtualRowIndex, colIndex) => {
+    console.log(`🎯 Navegação: ${direction}, virtualRow: ${virtualRowIndex}, col: ${colIndex}`);
+    console.log(`📍 Estado atual - currentCell:`, currentCell);
+    console.log(`📊 Total produtos: ${filteredProdutos.length}, Virtual range: ${virtualizedData.startIndex}-${virtualizedData.endIndex}`);
+
+    // Calcular o índice real no array completo de produtos
     const realRowIndex = virtualRowIndex + virtualizedData.startIndex;
+    console.log(`🎯 Índice real calculado: ${realRowIndex}`);
+
     const maxRow = filteredProdutos.length - 1;
     const maxCol = columns.length - 1;
 
@@ -628,18 +587,24 @@ const ProdutoList = ({ searchParams }) => {
     switch (direction) {
       case 'up':
         newRowIndex = Math.max(0, realRowIndex - 1);
+        console.log(`⬆️ Subindo: ${realRowIndex} -> ${newRowIndex}`);
         break;
+        
       case 'down':
         newRowIndex = Math.min(maxRow, realRowIndex + 1);
+        console.log(`⬇️ Descendo: ${realRowIndex} -> ${newRowIndex} (max: ${maxRow})`);
+        
         // Trigger load more if near end
         if (newRowIndex > maxRow - 10 && hasMore && !loadingMore) {
+          console.log(`📥 Próximo do fim, carregando mais produtos...`);
           setTimeout(() => {
             if (hasMore && !loadingMore) {
               fetchMoreProdutos();
             }
-          }, 0); // Ajustei para 0 ou um tempo muito pequeno
+          }, 100);
         }
         break;
+        
       case 'left': {
         let foundEditableCell = false;
         for (let col = colIndex - 1; col >= 0; col--) {
@@ -658,8 +623,10 @@ const ProdutoList = ({ searchParams }) => {
             }
           }
         }
+        console.log(`⬅️ Esquerda: col ${colIndex} -> ${newColIndex}, row ${realRowIndex} -> ${newRowIndex}`);
         break;
       }
+      
       case 'right': {
         let foundEditableCell = false;
         for (let col = colIndex + 1; col <= maxCol; col++) {
@@ -678,34 +645,49 @@ const ProdutoList = ({ searchParams }) => {
             }
           }
         }
+        console.log(`➡️ Direita: col ${colIndex} -> ${newColIndex}, row ${realRowIndex} -> ${newRowIndex}`);
         break;
       }
     }
 
-    // Scroll suave apenas se necessário
+    // Garantir que os índices estão dentro dos limites
+    newRowIndex = Math.max(0, Math.min(maxRow, newRowIndex));
+    newColIndex = Math.max(0, Math.min(maxCol, newColIndex));
+
+    console.log(`✅ Novos índices finais: row=${newRowIndex}, col=${newColIndex}`);
+
+    // Scroll automático apenas se a linha mudou
     if (newRowIndex !== realRowIndex) {
       const container = containerRef.current;
       if (container) {
         const targetY = newRowIndex * ITEM_HEIGHT;
         const viewportTop = scrollTop;
         const viewportBottom = scrollTop + containerHeight;
+        const padding = ITEM_HEIGHT * 2; // Padding extra para visibilidade
 
-        if (targetY < viewportTop || targetY + ITEM_HEIGHT > viewportBottom) {
+        console.log(`📺 Scroll check - targetY: ${targetY}, viewport: ${viewportTop}-${viewportBottom}`);
+
+        if (targetY < viewportTop + padding || targetY + ITEM_HEIGHT > viewportBottom - padding) {
           const newScrollTop = Math.max(0, targetY - (containerHeight / 3));
+          console.log(`🔄 Fazendo scroll para: ${newScrollTop}`);
+          
           container.scrollTo({
             top: newScrollTop,
-            behavior: 'auto'
+            behavior: 'smooth'
           });
         }
       }
     }
 
+    // Atualizar estado
     setCurrentCell({ rowIndex: newRowIndex, colIndex: newColIndex });
 
+    // Atualizar produto selecionado
     if (newRowIndex >= 0 && newRowIndex < filteredProdutos.length) {
       setSelectedProduct(filteredProdutos[newRowIndex]);
+      console.log(`🎯 Produto selecionado: ${filteredProdutos[newRowIndex]?.item_id} - ${filteredProdutos[newRowIndex]?.descricao}`);
     }
-  }, [virtualizedData, filteredProdutos, columns, hasMore, loadingMore, fetchMoreProdutos, scrollTop, containerHeight]);
+  }, [virtualizedData, filteredProdutos, columns, hasMore, loadingMore, fetchMoreProdutos, scrollTop, containerHeight, currentCell]);
 
   const handleRowMouseEnter = useCallback((produto, realRowIndex) => {
     setSelectedProduct(produto);
@@ -749,14 +731,11 @@ const ProdutoList = ({ searchParams }) => {
         dadosParaEnviar.ativo = value === '' ? 'A' : value;
       } else if (field.startsWith('loja')) {
         const lojaNumero = field.replace('loja', '');
-        // Garantir que seja um número inteiro antes de enviar
         dadosParaEnviar[`estoque_pdv${lojaNumero}`] = value === '' ? 0 : parseInt(value, 10);
       } else if (field.startsWith('venda')) {
         const vendaNumero = field.replace('venda', '');
-        // Garantir que seja um número decimal antes de enviar
         dadosParaEnviar[`valor_venda${vendaNumero}`] = value === '' ? 0 : parseFloat(value);
       } else if (field === 'custo_final') {
-        // Garantir que seja um número decimal antes de enviar
         dadosParaEnviar.custo_venda = value === '' ? 0 : parseFloat(value);
       } else {
         dadosParaEnviar[field] = value;
@@ -879,9 +858,8 @@ const ProdutoList = ({ searchParams }) => {
                     // Formatar o valor para exibição
                     const valorFormatado = formatarValor(valorBruto, column);
                     // O valor para edição deve ser sempre a representação string do valor bruto
-                    // sem formatação para que o EditableCell possa parseá-lo corretamente.
                     const valorParaEdicao = (valorBruto !== undefined && valorBruto !== null)
-                      ? String(valorBruto) // Convertendo diretamente para string
+                      ? String(valorBruto)
                       : '';
 
                     return (
@@ -897,8 +875,8 @@ const ProdutoList = ({ searchParams }) => {
                         {column.editable ? (
                           <EditableCell
                             id={`cell-${realRowIndex}-${colIndex}`}
-                            value={valorParaEdicao} // Passar o valor bruto para edição
-                            displayValue={valorFormatado} // Passar o valor formatado para exibição
+                            value={valorParaEdicao}
+                            displayValue={valorFormatado}
                             onSave={(value) => handleCellChange(produto.item_id, column.id, value)}
                             tabIndex={getTabIndex(virtualIndex, colIndex)}
                             onKeyNavigation={(direction, vIndex, cIndex) => {
@@ -1013,7 +991,7 @@ const ProdutoList = ({ searchParams }) => {
             <span className="status-description">{selectedProduct.descricao}</span>
             {window.location.hostname === 'localhost' && (
               <span style={{ fontSize: '0.8em', marginLeft: '10px', color: '#ccc' }}>
-                [{virtualizedData.visibleItems.length}/{filteredProdutos.length}]
+                [{virtualizedData.visibleItems.length}/{filteredProdutos.length}] Row: {currentCell.rowIndex}
               </span>
             )}
           </>

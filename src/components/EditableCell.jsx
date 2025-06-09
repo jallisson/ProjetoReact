@@ -97,7 +97,6 @@ const EditableCell = ({
     }, 0);
   }, [displayValue]); // Dependência ajustada para displayValue
 
-
   // Handler para blur do input
   const handleBlur = useCallback(() => {
     if (isEditing) {
@@ -131,26 +130,31 @@ const EditableCell = ({
   const handleCellKeyDown = useCallback((e) => {
     if (isEditing) return; // Se já estiver editando, ignora
 
+    console.log(`🎹 Tecla pressionada na célula: ${e.key}, row=${rowIndex}, col=${colIndex}`);
+
     switch (e.key) {
       case 'ArrowUp':
       case 'ArrowDown':
       case 'ArrowLeft':
       case 'ArrowRight':
         e.preventDefault(); // Previne o comportamento padrão do navegador
+        console.log(`🎯 Navegando ${e.key.replace('Arrow', '').toLowerCase()}`);
         onKeyNavigation(e.key.replace('Arrow', '').toLowerCase(), rowIndex, colIndex);
         break;
       case 'Enter':
         e.preventDefault();
+        console.log(`⏎ Enter pressionado - iniciando edição`);
         startEditing(); // Inicia a edição com Enter
         break;
       case 'Tab':
         // Deixar o Tab funcionar naturalmente para navegar entre os elementos focusable
+        console.log(`⭾ Tab pressionado`);
         break;
       default:
         // Se digitar qualquer caractere alfanumérico ou pontuação, iniciar edição
-        // Permite sobrescrever o valor existente apenas quando se está editando pela primeira vez.
         if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
             e.preventDefault();
+            console.log(`🔤 Caractere digitado: ${e.key} - iniciando edição`);
             startEditing(e.key); // Inicia a edição e preenche com a letra digitada
         }
         break;
@@ -159,9 +163,12 @@ const EditableCell = ({
 
   // Handler para keydown no input (quando está editando)
   const handleInputKeyDown = useCallback((e) => {
+    console.log(`🎹 Tecla no input: ${e.key}`);
+    
     switch (e.key) {
       case 'Enter':
         e.preventDefault();
+        console.log(`⏎ Enter no input - salvando e navegando para baixo`);
         saveChanges();
         // Navegar para baixo após salvar
         setTimeout(() => {
@@ -170,10 +177,12 @@ const EditableCell = ({
         break;
       case 'Escape':
         e.preventDefault();
+        console.log(`⎋ Escape no input - cancelando edição`);
         cancelEditing();
         break;
       case 'Tab':
         // Tab salva e move para próxima célula
+        console.log(`⭾ Tab no input - salvando`);
         saveChanges();
         break;
     }
@@ -185,13 +194,13 @@ const EditableCell = ({
       <input
         ref={inputRef}
         className="cell-input"
-        value={inputValue} // Usa o valor que o usuário está digitando (que agora é o formatado ou o caractere inicial)
+        value={inputValue} // Usa o valor que o usuário está digitando
         onChange={handleInputChange}
         onBlur={handleBlur}
         onKeyDown={handleInputKeyDown}
         tabIndex={tabIndex}
         id={id}
-        type={columnType === 'number' ? 'text' : 'text'} // Manter como 'text' para permitir vírgulas e pontos para o usuário
+        type={columnType === 'number' ? 'text' : 'text'} // Manter como 'text' para permitir vírgulas e pontos
         autoFocus
         style={{
           textAlign: columnType === 'number' ? 'right' : 'left'
