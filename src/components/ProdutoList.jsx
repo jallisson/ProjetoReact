@@ -309,19 +309,22 @@ const ProdutoList = ({ searchParams }) => {
       try {
         if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
           const searchTerm = searchParams.term;
-          console.log(`🔎 Busca com filtro: ${searchParams.filter} = "${searchTerm}"`);
+          console.log(`🔎 Busca com filtro: ${searchParams.filter} = "${searchTerm}" (modo automático: ${searchParams.mode})`);
 
           if (searchParams.filter === 'codigo') {
+            // Código: sempre busca EXATA
             response = await axios.get(`/api/produtos/search`, {
               params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' },
               timeout: 15000
             });
           } else if (searchParams.filter === 'descricao') {
+            // Descrição: sempre busca CONTÉM (LIKE %termo%)
             response = await axios.get(`/api/produtos/search`, {
-              params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' },
+              params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'contém' },
               timeout: 15000
             });
           } else if (searchParams.filter === 'fornecedor') {
+            // Fornecedor: sempre busca EXATA
             response = await axios.get(`/api/produtos/search`, {
               params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' },
               timeout: 15000
@@ -465,19 +468,29 @@ const ProdutoList = ({ searchParams }) => {
 
       if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
         const searchTerm = searchParams.term;
+        console.log(`🔎 Busca com filtro: ${searchParams.filter} = "${searchTerm}" (modo automático: ${searchParams.mode})`);
 
-        if (searchParams.filter === 'descricao') {
+        if (searchParams.filter === 'codigo') {
+          // Código: sempre busca EXATA
           response = await axios.get(`/api/produtos/search`, {
-            params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'maior_igual' },
+            params: { ...params, termo: searchTerm, campo: 'id', modo: 'exato' },
+            timeout: 15000
+          });
+        } else if (searchParams.filter === 'descricao') {
+          // Descrição: sempre busca CONTÉM (LIKE %termo%)
+          response = await axios.get(`/api/produtos/search`, {
+            params: { ...params, termo: searchTerm, campo: 'descricao', modo: 'contém' },
             timeout: 15000
           });
         } else if (searchParams.filter === 'fornecedor') {
+          // Fornecedor: sempre busca EXATA
           response = await axios.get(`/api/produtos/search`, {
             params: { ...params, termo: searchTerm, campo: 'fornecedor_id', modo: 'exato' },
             timeout: 15000
           });
         }
-      } else {
+      }
+      else {
         response = await axios.get('/api/produtos', {
           params,
           timeout: 15000

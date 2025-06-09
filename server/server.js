@@ -159,19 +159,50 @@ app.get('/api/produtos/search', async (req, res) => {
     let whereClause = '';
     let queryParams = [];
 
-    if (campo === 'descricao' && modo === 'maior_igual') {
-      whereClause = 'WHERE descricao >= ?';
-      queryParams.push(termo.toUpperCase());
-    } else if (campo === 'descricao' && modo === 'contém') {
-      whereClause = 'WHERE descricao LIKE ?';
-      queryParams.push(`%${termo}%`);
-    } else if (campo === 'id' && modo === 'exato') {
+    // CORREÇÃO PRINCIPAL: Ajustar a lógica de pesquisa
+    if (campo === 'descricao') {
+      if (modo === 'maior_igual') {
+        // Mantém a funcionalidade original para busca alfabética
+        whereClause = 'WHERE descricao >= ?';
+        queryParams.push(termo.toUpperCase());
+      } else if (modo === 'contém' || modo === 'contains') {
+        // BUSCA PRECISA: Usar BINARY para busca case-sensitive e com delimitadores
+        // Isso garante que "PN" não encontre "PNEUS"
+        whereClause = 'WHERE (descricao LIKE BINARY ? OR descricao LIKE BINARY ? OR descricao LIKE BINARY ? OR descricao LIKE BINARY ?)';
+        const termoUpper = termo.toUpperCase();
+        queryParams.push(
+          `${termoUpper} %`,    // Começa com termo + espaço
+          `% ${termoUpper} %`,  // Termo cercado por espaços
+          `% ${termoUpper}`,    // Termina com espaço + termo
+          `${termoUpper}`       // Termo exato (descrição inteira)
+        );
+      } else if (modo === 'começa_com' || modo === 'startsWith') {
+        // Busca por início da descrição
+        whereClause = 'WHERE descricao LIKE ?';
+        queryParams.push(`${termo.toUpperCase()}%`);
+      } else if (modo === 'exato' || modo === 'equal') {
+        // Busca exata
+        whereClause = 'WHERE descricao = ?';
+        queryParams.push(termo.toUpperCase());
+      } else {
+        // Fallback para busca precisa
+        whereClause = 'WHERE (descricao LIKE BINARY ? OR descricao LIKE BINARY ? OR descricao LIKE BINARY ? OR descricao LIKE BINARY ?)';
+        const termoUpper = termo.toUpperCase();
+        queryParams.push(
+          `${termoUpper} %`,
+          `% ${termoUpper} %`,
+          `% ${termoUpper}`,
+          `${termoUpper}`
+        );
+      }
+    } else if (campo === 'id' && (modo === 'exato' || modo === 'equal')) {
       whereClause = 'WHERE item_id = ?';
       queryParams.push(termo);
-    } else if (campo === 'fornecedor_id' && modo === 'exato') {
+    } else if (campo === 'fornecedor_id' && (modo === 'exato' || modo === 'equal')) {
       whereClause = 'WHERE fornecedor_id = ?';
       queryParams.push(parseInt(termo) || 0);
     } else {
+      // Busca geral (fallback)
       whereClause = 'WHERE descricao LIKE ? OR item_id LIKE ?';
       queryParams.push(`%${termo}%`, `%${termo}%`);
     }
@@ -196,7 +227,7 @@ app.get('/api/produtos/search', async (req, res) => {
     const totalItems = countResult[0].total;
     const totalPages = Math.ceil(totalItems / limit);
 
-    console.log(`✅ Pesquisa retornou ${rows.length} produtos`);
+    console.log(`✅ Pesquisa retornou ${rows.length} produtos para "${termo}" no campo "${campo}" com modo "${modo}"`);
 
     res.json({
       items: rows,

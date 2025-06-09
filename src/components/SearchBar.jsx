@@ -1,66 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const SearchBar = ({ onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBy, setFilterBy] = useState('descricao');
-  const [searchMode, setSearchMode] = useState('contains'); // Valor padrão 'contém'
 
-  // Opções de filtro com seus modos de pesquisa associados
+  // Opções de filtro com comportamentos FIXOS
   const filterOptions = [
-    { value: 'codigo', label: 'Código', defaultMode: 'equal' },
-    { value: 'descricao', label: 'Descrição', defaultMode: 'greaterOrEqual' },
-    { value: 'fornecedor', label: 'Fornecedor', defaultMode: 'equal' },
-    { value: 'moto', label: 'Moto', defaultMode: 'contains' }
+    { value: 'codigo', label: 'Código', mode: 'equal', description: '(busca exata)' },
+    { value: 'descricao', label: 'Descrição', mode: 'contains', description: '(contém)' },
+    { value: 'fornecedor', label: 'Fornecedor', mode: 'equal', description: '(busca exata)' },
+    { value: 'moto', label: 'Moto', mode: 'contains', description: '(contém)' }
   ];
 
-  // Opções de modos de pesquisa
-  const searchModes = [
-    { value: 'equal', label: 'Igual a' },
-    { value: 'contains', label: 'Contém' },
-    { value: 'greaterOrEqual', label: 'Maior ou igual' },
-    { value: 'startsWith', label: 'Começa com' }
-  ];
-
-  // NOVA FUNÇÃO: Gerar placeholder mais descritivo
+  // Função para gerar placeholder baseado no filtro selecionado
   const getPlaceholder = () => {
     switch (filterBy) {
       case 'codigo':
         return 'Digite o código exato...';
       case 'descricao':
-        return 'Digite para buscar >= alfabeticamente';
+        return 'Digite parte da descrição (ex: PN)...';
       case 'fornecedor':
         return 'Digite o ID do fornecedor...';
       case 'moto':
-        return 'Digite parte do nome (busca que contém)...';
+        return 'Digite parte do nome...';
       default:
         return 'Digite para pesquisar...';
     }
   };
 
-  // Atualiza o modo de pesquisa quando o filtro é alterado
-  useEffect(() => {
-    // Encontrar o filtro selecionado
+  // Obter o modo automático baseado no filtro
+  const getCurrentMode = () => {
     const selectedFilter = filterOptions.find(option => option.value === filterBy);
-    if (selectedFilter) {
-      // Definir o modo de pesquisa padrão para este filtro
-      setSearchMode(selectedFilter.defaultMode);
-    }
-  }, [filterBy]);
+    return selectedFilter ? selectedFilter.mode : 'contains';
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
     
     if (!searchTerm.trim()) {
-      // Se o termo de pesquisa estiver vazio, limpa a pesquisa
       onSearch({ term: '', filter: '', mode: '' });
       return;
     }
     
-    // Enviar pesquisa com filtro e modo
+    const mode = getCurrentMode();
+    
+    console.log(`🔍 Pesquisando: "${searchTerm}" no campo "${filterBy}" com modo "${mode}"`);
+    
     onSearch({
       term: searchTerm,
       filter: filterBy,
-      mode: searchMode
+      mode: mode
     });
   };
 
@@ -72,17 +61,23 @@ const SearchBar = ({ onSearch }) => {
 
   const handleClear = () => {
     setSearchTerm('');
-    // Reset para valores padrão
     setFilterBy('descricao');
-    setSearchMode('greaterOrEqual');
     onSearch({ term: '', filter: '', mode: '' });
+  };
+
+  // Obter descrição do comportamento atual
+  const getCurrentDescription = () => {
+    const selectedFilter = filterOptions.find(option => option.value === filterBy);
+    return selectedFilter ? selectedFilter.description : '';
   };
 
   return (
     <div className="search-container">
       <div className="filter-row">
         <div className="filter-column">
-          <label htmlFor="filter-type">Filtrar por</label>
+          <label htmlFor="filter-type">
+            Filtrar por {getCurrentDescription()}
+          </label>
           <select 
             id="filter-type"
             className="input-field"
