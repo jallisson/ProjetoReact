@@ -26,18 +26,18 @@ app.use(express.json());
 if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
   const frontendPath = path.join(__dirname, '..', 'dist');
   console.log('📁 Servindo frontend estático de:', frontendPath);
-  
+
   // Verificar se a pasta dist existe
   const fs = require('fs');
   if (fs.existsSync(frontendPath)) {
     console.log('✅ Pasta dist encontrada');
-    
+
     // Servir arquivos estáticos
     app.use(express.static(frontendPath, {
       index: ['index.html'],
       fallthrough: true
     }));
-    
+
     console.log('✅ Middleware de arquivos estáticos configurado');
   } else {
     console.log('❌ Pasta dist não encontrada em:', frontendPath);
@@ -144,7 +144,9 @@ app.get('/api/produtos', async (req, res) => {
   }
 });
 
-// Rota de pesquisa com paginação
+// CORREÇÃO DA PAGINAÇÃO - server/server.js
+// Substitua a rota GET /api/produtos/search por esta versão corrigida:
+
 app.get('/api/produtos/search', async (req, res) => {
   try {
     console.log('🔍 GET /api/produtos/search');
@@ -159,41 +161,23 @@ app.get('/api/produtos/search', async (req, res) => {
     let whereClause = '';
     let queryParams = [];
 
-    // CORREÇÃO PRINCIPAL: Ajustar a lógica de pesquisa
     if (campo === 'descricao') {
       if (modo === 'maior_igual') {
-        // Mantém a funcionalidade original para busca alfabética
         whereClause = 'WHERE descricao >= ?';
         queryParams.push(termo.toUpperCase());
       } else if (modo === 'contém' || modo === 'contains') {
-        // BUSCA PRECISA: Usar BINARY para busca case-sensitive e com delimitadores
-        // Isso garante que "PN" não encontre "PNEUS"
-        whereClause = 'WHERE (descricao LIKE BINARY ? OR descricao LIKE BINARY ? OR descricao LIKE BINARY ? OR descricao LIKE BINARY ?)';
-        const termoUpper = termo.toUpperCase();
-        queryParams.push(
-          `${termoUpper} %`,    // Começa com termo + espaço
-          `% ${termoUpper} %`,  // Termo cercado por espaços
-          `% ${termoUpper}`,    // Termina com espaço + termo
-          `${termoUpper}`       // Termo exato (descrição inteira)
-        );
+        whereClause = 'WHERE descricao LIKE ?';
+        queryParams.push(`%${termo.toUpperCase()}%`);
+        console.log(`🔎 Busca contém: "${termo}" -> Query: descricao LIKE '%${termo.toUpperCase()}%'`);
       } else if (modo === 'começa_com' || modo === 'startsWith') {
-        // Busca por início da descrição
         whereClause = 'WHERE descricao LIKE ?';
         queryParams.push(`${termo.toUpperCase()}%`);
       } else if (modo === 'exato' || modo === 'equal') {
-        // Busca exata
         whereClause = 'WHERE descricao = ?';
         queryParams.push(termo.toUpperCase());
       } else {
-        // Fallback para busca precisa
-        whereClause = 'WHERE (descricao LIKE BINARY ? OR descricao LIKE BINARY ? OR descricao LIKE BINARY ? OR descricao LIKE BINARY ?)';
-        const termoUpper = termo.toUpperCase();
-        queryParams.push(
-          `${termoUpper} %`,
-          `% ${termoUpper} %`,
-          `% ${termoUpper}`,
-          `${termoUpper}`
-        );
+        whereClause = 'WHERE descricao LIKE ?';
+        queryParams.push(`%${termo.toUpperCase()}%`);
       }
     } else if (campo === 'id' && (modo === 'exato' || modo === 'equal')) {
       whereClause = 'WHERE item_id = ?';
@@ -202,9 +186,35 @@ app.get('/api/produtos/search', async (req, res) => {
       whereClause = 'WHERE fornecedor_id = ?';
       queryParams.push(parseInt(termo) || 0);
     } else {
-      // Busca geral (fallback)
       whereClause = 'WHERE descricao LIKE ? OR item_id LIKE ?';
-      queryParams.push(`%${termo}%`, `%${termo}%`);
+      queryParams.push(`%${termo.toUpperCase()}%`, `%${termo}%`);
+    }
+
+    // 🔧 CORREÇÃO 1: Buscar total ANTES da query principal
+    const countQuery = `SELECT COUNT(*) as total FROM itens ${whereClause}`;
+    console.log('🔢 Query de contagem:', countQuery);
+    console.log('📋 Parâmetros de contagem:', queryParams);
+
+    const [countResult] = await pool.query(countQuery, queryParams);
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    console.log(`📊 Total encontrado: ${totalItems} itens`);
+    console.log(`📄 Total de páginas calculado: ${totalPages} (limit: ${limit})`);
+    console.log(`📍 Página atual: ${page} de ${totalPages}`);
+
+    // 🔧 CORREÇÃO 2: Verificar se a página solicitada existe
+    if (page > totalPages && totalPages > 0) {
+      console.log(`⚠️ Página ${page} não existe (máximo: ${totalPages})`);
+      return res.json({
+        items: [],
+        pagination: {
+          currentPage: page,
+          itemsPerPage: limit,
+          totalItems,
+          totalPages
+        }
+      });
     }
 
     const mainQuery = `
@@ -220,14 +230,19 @@ app.get('/api/produtos/search', async (req, res) => {
       LIMIT ? OFFSET ?
     `;
 
+    console.log('🗄️ Query SQL final:');
+    console.log(mainQuery);
+    console.log('📋 Parâmetros:', [...queryParams, limit, offset]);
+
     const [rows] = await pool.query(mainQuery, [...queryParams, limit, offset]);
 
-    const countQuery = `SELECT COUNT(*) as total FROM itens ${whereClause}`;
-    const [countResult] = await pool.query(countQuery, queryParams);
-    const totalItems = countResult[0].total;
-    const totalPages = Math.ceil(totalItems / limit);
+    // 🔧 CORREÇÃO 3: Log detalhado para debug
+    console.log(`✅ Página ${page}/${totalPages}: ${rows.length} produtos retornados`);
+    console.log(`📈 Progress: ${Math.min(page * limit, totalItems)}/${totalItems} itens`);
 
-    console.log(`✅ Pesquisa retornou ${rows.length} produtos para "${termo}" no campo "${campo}" com modo "${modo}"`);
+    // 🔧 CORREÇÃO 4: Verificar se há mais páginas
+    const hasNextPage = page < totalPages;
+    console.log(`➡️ Há próxima página? ${hasNextPage ? 'SIM' : 'NÃO'}`);
 
     res.json({
       items: rows,
@@ -235,14 +250,65 @@ app.get('/api/produtos/search', async (req, res) => {
         currentPage: page,
         itemsPerPage: limit,
         totalItems,
-        totalPages
+        totalPages,
+        hasNextPage,
+        remainingItems: Math.max(0, totalItems - (page * limit))
       }
     });
+
   } catch (error) {
     console.error('❌ Erro ao pesquisar produtos:', error);
     res.status(500).json({ message: 'Erro ao pesquisar produtos' });
   }
 });
+
+// 🔧 CORREÇÃO ADICIONAL: Também corrigir a rota de produtos gerais
+app.get('/api/produtos', async (req, res) => {
+  try {
+    console.log('📡 GET /api/produtos');
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 25;
+    const offset = (page - 1) * limit;
+    const sortDirection = req.query.sort === 'desc' ? 'DESC' : 'ASC';
+
+    // Contar total primeiro
+    const [countResult] = await pool.query('SELECT COUNT(*) as total FROM itens');
+    const totalItems = countResult[0].total;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    console.log(`📊 Total de itens: ${totalItems}, Páginas: ${totalPages}, Página atual: ${page}`);
+
+    const [rows] = await pool.query(`
+      SELECT 
+        item_id, descricao, fornecedor_id, ativo,
+        estoque_pdv1, estoque_pdv2, estoque_pdv3, estoque_pdv4, estoque_pdv5,
+        estoque_pdv6, estoque_pdv7, estoque_pdv8, estoque_pdv9, estoque_pdv10,
+        estoque_pdv11, estoque_pdv12, estoque_pdv13, estoque_pdv14, estoque_pdv15,
+        custo_venda, valor_venda1, valor_venda2, valor_venda3, valor_venda4
+      FROM itens 
+      ORDER BY item_id ${sortDirection}
+      LIMIT ? OFFSET ?
+    `, [limit, offset]);
+
+    console.log(`✅ Página ${page}/${totalPages}: ${rows.length} produtos retornados`);
+
+    res.json({
+      items: rows,
+      pagination: {
+        currentPage: page,
+        itemsPerPage: limit,
+        totalItems,
+        totalPages,
+        hasNextPage: page < totalPages,
+        remainingItems: Math.max(0, totalItems - (page * limit))
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erro ao buscar produtos:', error);
+    res.status(500).json({ message: 'Erro ao buscar produtos' });
+  }
+});
+
 
 // Rota para atualizar produto
 app.put('/api/produtos/:id', async (req, res) => {
@@ -357,7 +423,7 @@ app.get('/', (req, res) => {
   if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
     const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
     const fs = require('fs');
-    
+
     if (fs.existsSync(indexPath)) {
       console.log('📄 Servindo index.html da raiz');
       return res.sendFile(indexPath);
@@ -372,7 +438,7 @@ app.get('/', (req, res) => {
       });
     }
   }
-  
+
   // Desenvolvimento - retornar JSON
   res.json({
     message: '🎉 API de Gerenciamento de Produtos funcionando!',
@@ -393,16 +459,16 @@ if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
     if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
       return res.status(404).json({ message: 'Rota da API não encontrada' });
     }
-    
+
     const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
     const fs = require('fs');
-    
+
     if (fs.existsSync(indexPath)) {
       console.log(`🔄 SPA Fallback: ${req.path} -> index.html`);
       res.sendFile(indexPath);
     } else {
       console.log(`❌ SPA Fallback falhou: index.html não encontrado para ${req.path}`);
-      res.status(404).json({ 
+      res.status(404).json({
         message: 'Página não encontrada',
         error: 'Frontend não foi buildado corretamente'
       });
@@ -417,12 +483,12 @@ if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`🌍 URL: http://0.0.0.0:${PORT}`);
-  
+
   if (process.env.RAILWAY_ENVIRONMENT) {
     console.log('🚂 Deploy no Railway concluído com sucesso!');
     console.log('📱 Frontend e Backend integrados em uma única aplicação');
   }
-  
+
   if (process.env.NODE_ENV === 'production') {
     console.log('🎉 Ambiente de produção ativo');
   }

@@ -242,7 +242,9 @@ const ProdutoList = ({ searchParams }) => {
     return normalized;
   };
 
-  // Função para buscar dados iniciais
+  // CORREÇÃO DO SCROLL INFINITO - src/components/ProdutoList.jsx
+  // Substitua as funções fetchInitialProdutos e fetchMoreProdutos:
+
   const fetchInitialProdutos = useCallback(async () => {
     try {
       setLoading(true);
@@ -262,7 +264,7 @@ const ProdutoList = ({ searchParams }) => {
 
       const params = {
         page: 1,
-        limit: 50,
+        limit: 50, // Primeira página com 50 itens
         sort: 'asc'
       };
 
@@ -271,7 +273,7 @@ const ProdutoList = ({ searchParams }) => {
       try {
         if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
           const searchTerm = searchParams.term;
-          console.log(`🔎 Busca com filtro: ${searchParams.filter} = "${searchTerm}" (modo automático: ${searchParams.mode})`);
+          console.log(`🔎 Busca com filtro: ${searchParams.filter} = "${searchTerm}"`);
 
           if (searchParams.filter === 'codigo') {
             response = await axios.get(`/api/produtos/search`, {
@@ -301,15 +303,7 @@ const ProdutoList = ({ searchParams }) => {
 
       } catch (apiError) {
         console.error('❌ Erro na API:', apiError);
-        let errorMessage = 'Erro ao conectar com a API';
-        if (apiError.code === 'ECONNABORTED') {
-          errorMessage = 'Timeout: A API demorou muito para responder';
-        } else if (apiError.response?.status === 404) {
-          errorMessage = 'Endpoint da API não encontrado';
-        } else if (apiError.response?.status >= 500) {
-          errorMessage = 'Erro interno do servidor';
-        }
-        setError(`${errorMessage}: ${apiError.message}`);
+        setError(`Erro na API: ${apiError.message}`);
         setLoading(false);
         return;
       }
@@ -321,12 +315,23 @@ const ProdutoList = ({ searchParams }) => {
       }
 
       let data = [];
+      let paginationInfo = null;
+
       if (response.data.items && Array.isArray(response.data.items)) {
         data = response.data.items;
-        console.log(`✅ ${data.length} produtos recebidos via paginação`);
-        if (response.data.pagination) {
-          setHasMore(response.data.pagination.currentPage < response.data.pagination.totalPages);
-          console.log(`📄 Página ${response.data.pagination.currentPage} de ${response.data.pagination.totalPages}`);
+        paginationInfo = response.data.pagination;
+        console.log(`✅ ${data.length} produtos recebidos da página 1`);
+
+        if (paginationInfo) {
+          console.log(`📊 Total de itens: ${paginationInfo.totalItems}`);
+          console.log(`📄 Página ${paginationInfo.currentPage} de ${paginationInfo.totalPages}`);
+          console.log(`🔄 Há mais páginas? ${paginationInfo.hasNextPage ? 'SIM' : 'NÃO'}`);
+
+          // 🔧 CORREÇÃO PRINCIPAL: Usar hasNextPage da API
+          setHasMore(paginationInfo.hasNextPage === true);
+        } else {
+          // Fallback se não tiver paginationInfo
+          setHasMore(data.length >= params.limit);
         }
       } else if (Array.isArray(response.data)) {
         data = response.data;
@@ -334,41 +339,27 @@ const ProdutoList = ({ searchParams }) => {
         setHasMore(data.length >= params.limit);
       }
 
-      console.log(`📊 Total de produtos brutos recebidos: ${data.length}`);
-
       if (!data || data.length === 0) {
         console.warn('⚠️ Nenhum produto retornado pela API');
         setProdutos([]);
         setFilteredProdutos([]);
-        setError('A API não retornou produtos. Verifique se há dados no banco.');
+        setError('Nenhum produto encontrado.');
         setLoading(false);
         return;
       }
 
-      console.log('🔄 Normalizando dados...');
       const produtosNormalizados = normalizeProductData(data);
-      console.log('✅ Primeiro produto normalizado:', produtosNormalizados[0]);
+      console.log(`🎯 ${produtosNormalizados.length} produtos normalizados na primeira página`);
 
       setProdutos(produtosNormalizados);
 
-      if ((searchParams.filter === 'codigo' && searchParams.term) ||
-        (searchParams.filter === 'moto' && searchParams.term)) {
-
-        let filtered = produtosNormalizados;
-
-        if (searchParams.filter === 'codigo') {
-          filtered = produtosNormalizados.filter(produto =>
-            produto.item_id.toString() === searchParams.term.toString()
-          );
-        } else if (searchParams.filter === 'moto') {
-          filtered = produtosNormalizados.filter(produto =>
-            produto.descricao.toLowerCase().includes(searchParams.term.toLowerCase())
-          );
-          filtered.sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
-        }
-
-        setFilteredProdutos(filtered);
-        setHasMore(false);
+      // Aplicar ordenação se necessário, mas SEM filtração adicional
+      if (searchParams.filter === 'moto' && searchParams.term) {
+        const sortedProdutos = [...produtosNormalizados].sort((a, b) =>
+          a.descricao.localeCompare(b.descricao, 'pt-BR')
+        );
+        setFilteredProdutos(sortedProdutos);
+        setHasMore(false); // Moto não tem scroll infinito
       } else if (searchParams.filter === 'descricao' && searchParams.term) {
         const sortedProdutos = [...produtosNormalizados].sort((a, b) =>
           a.descricao.localeCompare(b.descricao, 'pt-BR')
@@ -382,7 +373,7 @@ const ProdutoList = ({ searchParams }) => {
         setSelectedProduct(produtosNormalizados[0]);
       }
 
-      console.log(`✅ ${produtosNormalizados.length} produtos processados e prontos para exibição`);
+      console.log(`✅ Primeira página carregada. hasMore: ${hasMore ? 'SIM' : 'NÃO'}`);
       setError(null);
 
     } catch (err) {
@@ -396,9 +387,9 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [searchParams]);
 
-  // Função para carregar mais produtos
   const fetchMoreProdutos = useCallback(async () => {
     if (!hasMore || loadingMore) {
+      console.log(`🛑 Não carregando mais: hasMore=${hasMore}, loadingMore=${loadingMore}`);
       return;
     }
 
@@ -410,11 +401,13 @@ const ProdutoList = ({ searchParams }) => {
 
       const params = {
         page: nextPage,
-        limit: 100,
+        limit: 50, // Manter consistente com a primeira página
         sort: 'asc'
       };
 
+      // Para filtros específicos que não devem ter scroll infinito
       if (searchParams.filter === 'moto' || searchParams.filter === 'codigo') {
+        console.log('🏍️ Filtro moto/codigo - desabilitando scroll infinito');
         setHasMore(false);
         setLoadingMore(false);
         return;
@@ -424,7 +417,7 @@ const ProdutoList = ({ searchParams }) => {
 
       if (searchParams.term && searchParams.filter && searchParams.filter !== 'moto') {
         const searchTerm = searchParams.term;
-        console.log(`🔎 Busca com filtro: ${searchParams.filter} = "${searchTerm}" (modo automático: ${searchParams.mode})`);
+        console.log(`🔎 Carregando mais resultados para: ${searchParams.filter} = "${searchTerm}"`);
 
         if (searchParams.filter === 'codigo') {
           response = await axios.get(`/api/produtos/search`, {
@@ -442,8 +435,7 @@ const ProdutoList = ({ searchParams }) => {
             timeout: 15000
           });
         }
-      }
-      else {
+      } else {
         response = await axios.get('/api/produtos', {
           params,
           timeout: 15000
@@ -451,10 +443,24 @@ const ProdutoList = ({ searchParams }) => {
       }
 
       let data = [];
+      let paginationInfo = null;
+
       if (response && response.data) {
         if (response.data.items) {
           data = response.data.items;
-          setHasMore(response.data.pagination.currentPage < response.data.pagination.totalPages);
+          paginationInfo = response.data.pagination;
+
+          console.log(`📦 Página ${nextPage}: ${data.length} produtos recebidos`);
+
+          if (paginationInfo) {
+            console.log(`📊 Total: ${paginationInfo.totalItems}, Página ${paginationInfo.currentPage}/${paginationInfo.totalPages}`);
+            console.log(`🔄 Há próxima página? ${paginationInfo.hasNextPage ? 'SIM' : 'NÃO'}`);
+
+            // 🔧 CORREÇÃO: Usar hasNextPage da resposta da API
+            setHasMore(paginationInfo.hasNextPage === true);
+          } else {
+            setHasMore(data.length >= params.limit);
+          }
         } else if (Array.isArray(response.data)) {
           data = response.data;
           setHasMore(data.length >= params.limit);
@@ -462,6 +468,7 @@ const ProdutoList = ({ searchParams }) => {
       }
 
       if (!data || data.length === 0) {
+        console.log('📄 Última página alcançada - sem mais produtos');
         setHasMore(false);
         setLoadingMore(false);
         return;
@@ -469,6 +476,7 @@ const ProdutoList = ({ searchParams }) => {
 
       const produtosNormalizados = normalizeProductData(data);
 
+      // Evitar duplicatas
       const produtosExistentesIds = new Set(produtos.map(p => p.item_id?.toString()));
       const novosProdutos = produtosNormalizados.filter(produto => {
         const id = produto.item_id?.toString();
@@ -479,6 +487,7 @@ const ProdutoList = ({ searchParams }) => {
         const newProdutos = [...produtos, ...novosProdutos];
         setProdutos(newProdutos);
 
+        // Manter ordenação se necessário
         if (searchParams.filter === 'descricao' && searchParams.term) {
           const sortedProdutos = [...newProdutos].sort((a, b) =>
             a.descricao.localeCompare(b.descricao, 'pt-BR')
@@ -489,8 +498,10 @@ const ProdutoList = ({ searchParams }) => {
         }
 
         setPage(nextPage);
-        console.log(`✅ ${novosProdutos.length} novos produtos adicionados`);
+        console.log(`✅ ${novosProdutos.length} novos produtos adicionados. Total: ${newProdutos.length}`);
+        console.log(`🔄 Continue carregando? ${hasMore ? 'SIM' : 'NÃO'}`);
       } else {
+        console.log('🚫 Nenhum produto novo encontrado - parando scroll infinito');
         setHasMore(false);
       }
 
@@ -501,6 +512,22 @@ const ProdutoList = ({ searchParams }) => {
       setLoadingMore(false);
     }
   }, [page, hasMore, loadingMore, searchParams, produtos]);
+
+  // 🔧 CORREÇÃO ADICIONAL: 
+  // A variável showNoMoreData já existe no código original
+  // Apenas certifique-se de que o indicador de fim de lista mostra informações de debug:
+
+  // Procure por onde renderiza "end-of-list" e substitua por:
+  // {showNoMoreData && (
+  //   <div className="end-of-list">
+  //     ✅ Todos os {filteredProdutos.length} produtos carregados.
+  //     {window.location.hostname === 'localhost' && (
+  //       <div style={{ fontSize: '0.8em', marginTop: '5px', color: '#666' }}>
+  //         Debug: hasMore={hasMore.toString()}, loadingMore={loadingMore.toString()}, page={page}
+  //       </div>
+  //     )}
+  //   </div>
+  // )}
 
   // Effect para buscar produtos iniciais
   useEffect(() => {
@@ -589,11 +616,11 @@ const ProdutoList = ({ searchParams }) => {
         newRowIndex = Math.max(0, realRowIndex - 1);
         console.log(`⬆️ Subindo: ${realRowIndex} -> ${newRowIndex}`);
         break;
-        
+
       case 'down':
         newRowIndex = Math.min(maxRow, realRowIndex + 1);
         console.log(`⬇️ Descendo: ${realRowIndex} -> ${newRowIndex} (max: ${maxRow})`);
-        
+
         // Trigger load more if near end
         if (newRowIndex > maxRow - 10 && hasMore && !loadingMore) {
           console.log(`📥 Próximo do fim, carregando mais produtos...`);
@@ -604,7 +631,7 @@ const ProdutoList = ({ searchParams }) => {
           }, 100);
         }
         break;
-        
+
       case 'left': {
         let foundEditableCell = false;
         for (let col = colIndex - 1; col >= 0; col--) {
@@ -626,7 +653,7 @@ const ProdutoList = ({ searchParams }) => {
         console.log(`⬅️ Esquerda: col ${colIndex} -> ${newColIndex}, row ${realRowIndex} -> ${newRowIndex}`);
         break;
       }
-      
+
       case 'right': {
         let foundEditableCell = false;
         for (let col = colIndex + 1; col <= maxCol; col++) {
@@ -670,7 +697,7 @@ const ProdutoList = ({ searchParams }) => {
         if (targetY < viewportTop + padding || targetY + ITEM_HEIGHT > viewportBottom - padding) {
           const newScrollTop = Math.max(0, targetY - (containerHeight / 3));
           console.log(`🔄 Fazendo scroll para: ${newScrollTop}`);
-          
+
           container.scrollTo({
             top: newScrollTop,
             behavior: 'smooth'

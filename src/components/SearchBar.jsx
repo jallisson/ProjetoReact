@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const SearchBar = ({ onSearch }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,35 +34,65 @@ const SearchBar = ({ onSearch }) => {
     return selectedFilter ? selectedFilter.mode : 'contains';
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    
-    if (!searchTerm.trim()) {
-      onSearch({ term: '', filter: '', mode: '' });
-      return;
-    }
-    
-    const mode = getCurrentMode();
-    
-    console.log(`🔍 Pesquisando: "${searchTerm}" no campo "${filterBy}" com modo "${mode}"`);
+  // Função de pesquisa para uso direto nos handlers
+  const executeSearch = (term, filter) => {
+    const selectedFilter = filterOptions.find(option => option.value === filter);
+    const mode = selectedFilter ? selectedFilter.mode : 'contains';
     
     onSearch({
-      term: searchTerm,
-      filter: filterBy,
+      term: term,
+      filter: filter,
       mode: mode
     });
   };
 
+  // Effect para pesquisa automática quando o termo muda
+  useEffect(() => {
+    // Debounce de 500ms para evitar muitas requisições
+    const timeoutId = setTimeout(() => {
+      const selectedFilter = filterOptions.find(option => option.value === filterBy);
+      const mode = selectedFilter ? selectedFilter.mode : 'contains';
+      
+      console.log(`🔍 Pesquisa automática: "${searchTerm}" no campo "${filterBy}" com modo "${mode}"`);
+      
+      onSearch({
+        term: searchTerm,
+        filter: filterBy,
+        mode: mode
+      });
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, filterBy]); // Removido performSearch das dependências para evitar loop
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    // Executa pesquisa imediata quando clica no botão
+    executeSearch(searchTerm, filterBy);
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      handleSearch(e);
+      e.preventDefault(); // Previne o submit do form
+      // Executa pesquisa imediata no Enter
+      executeSearch(searchTerm, filterBy);
     }
   };
 
   const handleClear = () => {
     setSearchTerm('');
     setFilterBy('descricao');
-    onSearch({ term: '', filter: '', mode: '' });
+    // onSearch será chamado automaticamente pelo useEffect quando searchTerm mudar
+  };
+
+  const handleTermChange = (e) => {
+    setSearchTerm(e.target.value);
+    // A pesquisa será executada automaticamente pelo useEffect
+  };
+
+  const handleFilterChange = (e) => {
+    setFilterBy(e.target.value);
+    // A pesquisa será executada automaticamente pelo useEffect
   };
 
   // Obter descrição do comportamento atual
@@ -82,7 +112,7 @@ const SearchBar = ({ onSearch }) => {
             id="filter-type"
             className="input-field"
             value={filterBy}
-            onChange={(e) => setFilterBy(e.target.value)}
+            onChange={handleFilterChange}
           >
             {filterOptions.map(option => (
               <option key={option.value} value={option.value}>
@@ -93,13 +123,13 @@ const SearchBar = ({ onSearch }) => {
         </div>
         
         <div className="filter-column">
-          <label htmlFor="search-term">Pesquisar item</label>
+          <label htmlFor="search-term">Pesquisar item (automático)</label>
           <input
             id="search-term"
             type="text"
             className="input-field"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleTermChange}
             onKeyDown={handleKeyDown}
             placeholder={getPlaceholder()}
           />
