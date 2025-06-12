@@ -207,7 +207,14 @@ const ProdutoList = ({ searchParams }) => {
   // Função para normalizar dados do backend
   const normalizeProductData = (backendItems) => {
     console.log('🔄 Normalizando dados do backend...');
-    console.log('📋 Exemplo de item bruto recebido da API:', backendItems[0]);
+    console.log('📋 Total de itens recebidos:', backendItems.length);
+    
+    // Debug específico para produto 18426
+    const produto18426Raw = backendItems.find(item => item.item_id == 18426);
+    console.log('🎯 Produto 18426 nos dados brutos:', produto18426Raw ? 'ENCONTRADO' : 'NÃO ENCONTRADO');
+    if (produto18426Raw) {
+      console.log('📋 Dados do 18426:', produto18426Raw);
+    }
 
     const normalized = backendItems.map(item => {
       const produto = {};
@@ -238,13 +245,18 @@ const ProdutoList = ({ searchParams }) => {
       return produto;
     });
 
-    console.log('✅ Exemplo de item normalizado (primeiro):', normalized[0]);
+    // Verificar se 18426 está no resultado final
+    const produto18426Final = normalized.find(p => p.item_id == 18426);
+    console.log('✅ Produto 18426 após normalização:', produto18426Final ? 'ENCONTRADO' : 'PERDIDO');
+    if (produto18426Final) {
+      console.log('📋 18426 normalizado:', produto18426Final);
+    }
+
+    console.log('✅ Normalização concluída:', normalized.length, 'produtos');
     return normalized;
   };
 
-  // CORREÇÃO DO SCROLL INFINITO - src/components/ProdutoList.jsx
-  // Substitua as funções fetchInitialProdutos e fetchMoreProdutos:
-
+  // Função para buscar dados iniciais
   const fetchInitialProdutos = useCallback(async () => {
     try {
       setLoading(true);
@@ -264,7 +276,7 @@ const ProdutoList = ({ searchParams }) => {
 
       const params = {
         page: 1,
-        limit: 50, // Primeira página com 50 itens
+        limit: 1000, // Primeira página com 50 itens
         sort: 'asc'
       };
 
@@ -300,6 +312,16 @@ const ProdutoList = ({ searchParams }) => {
         }
 
         console.log('📡 Resposta da API recebida:', response?.data);
+        
+        // 🔍 DEBUG ESPECÍFICO para busca geral
+        if (!searchParams.term || !searchParams.filter) {
+          console.log('🔍 DEBUG BUSCA GERAL:');
+          console.log('  - Pagination info:', response?.data?.pagination);
+          console.log('  - Items length:', response?.data?.items?.length);
+          console.log('  - HasNextPage:', response?.data?.pagination?.hasNextPage);
+          console.log('  - CurrentPage:', response?.data?.pagination?.currentPage);
+          console.log('  - TotalPages:', response?.data?.pagination?.totalPages);
+        }
 
       } catch (apiError) {
         console.error('❌ Erro na API:', apiError);
@@ -316,27 +338,29 @@ const ProdutoList = ({ searchParams }) => {
 
       let data = [];
       let paginationInfo = null;
+      let initialHasMore = false;
 
       if (response.data.items && Array.isArray(response.data.items)) {
         data = response.data.items;
         paginationInfo = response.data.pagination;
         console.log(`✅ ${data.length} produtos recebidos da página 1`);
-
+        
         if (paginationInfo) {
           console.log(`📊 Total de itens: ${paginationInfo.totalItems}`);
           console.log(`📄 Página ${paginationInfo.currentPage} de ${paginationInfo.totalPages}`);
           console.log(`🔄 Há mais páginas? ${paginationInfo.hasNextPage ? 'SIM' : 'NÃO'}`);
-
-          // 🔧 CORREÇÃO PRINCIPAL: Usar hasNextPage da API
-          setHasMore(paginationInfo.hasNextPage === true);
+          
+          // 🔧 CORREÇÃO: Usar hasNextPage da API corretamente
+          initialHasMore = paginationInfo.hasNextPage === true;
         } else {
           // Fallback se não tiver paginationInfo
-          setHasMore(data.length >= params.limit);
+          initialHasMore = data.length >= params.limit;
         }
       } else if (Array.isArray(response.data)) {
         data = response.data;
         console.log(`✅ ${data.length} produtos recebidos via array direto`);
-        setHasMore(data.length >= params.limit);
+        // 🔧 CORREÇÃO: Para array direto, verificar se tem mais páginas
+        initialHasMore = data.length >= params.limit;
       }
 
       if (!data || data.length === 0) {
@@ -353,27 +377,56 @@ const ProdutoList = ({ searchParams }) => {
 
       setProdutos(produtosNormalizados);
 
-      // Aplicar ordenação se necessário, mas SEM filtração adicional
+      // 🔧 CORREÇÃO PRINCIPAL: REMOVER ORDENAÇÃO ALFABÉTICA DESNECESSÁRIA
+      // O backend já retorna ordenado alfabeticamente!
+      
+      // Para filtro "moto", manter apenas ordenação alfabética
       if (searchParams.filter === 'moto' && searchParams.term) {
+        console.log('🏍️ Aplicando apenas ordenação para filtro moto');
         const sortedProdutos = [...produtosNormalizados].sort((a, b) =>
           a.descricao.localeCompare(b.descricao, 'pt-BR')
         );
         setFilteredProdutos(sortedProdutos);
         setHasMore(false); // Moto não tem scroll infinito
-      } else if (searchParams.filter === 'descricao' && searchParams.term) {
-        const sortedProdutos = [...produtosNormalizados].sort((a, b) =>
-          a.descricao.localeCompare(b.descricao, 'pt-BR')
-        );
-        setFilteredProdutos(sortedProdutos);
-      } else {
+      } 
+      // 🔧 CORREÇÃO: NÃO REORDENAR - o backend já vem ordenado!
+      else if (searchParams.filter === 'descricao' && searchParams.term) {
+        console.log('📝 Usando ordem do backend (já ordenado alfabeticamente)');
+        setFilteredProdutos(produtosNormalizados); // ← SEM REORDENAÇÃO!
+        setHasMore(initialHasMore); // 🔧 USAR O VALOR CORRETO
+      } 
+      // Para todos os outros casos, usar os dados como recebidos da API
+      else {
+        console.log('📋 Usando dados como recebidos da API (sem filtração adicional)');
         setFilteredProdutos(produtosNormalizados);
+        setHasMore(initialHasMore); // 🔧 USAR O VALOR CORRETO
+        
+        // 🔧 CORREÇÃO ESPECÍFICA: Debug para busca geral
+        if (!searchParams.term && !searchParams.filter) {
+          console.log('🌍 BUSCA GERAL (sem filtros):');
+          console.log(`  - Produtos carregados: ${produtosNormalizados.length}`);
+          console.log(`  - hasMore: ${initialHasMore ? 'SIM' : 'NÃO'}`);
+          console.log(`  - Deve carregar mais páginas para mostrar todos os 43.301 produtos`);
+        }
+      }
+
+      // Debug pós-setState
+      console.log('🔍 DEBUG pós-normalização e pós-setState:');
+      console.log(`📊 Total de produtos normalizados: ${produtosNormalizados.length}`);
+      console.log(`🔄 hasMore definido como: ${initialHasMore ? 'SIM' : 'NÃO'}`);
+      
+      const produto18426Final = produtosNormalizados.find(p => p.item_id == 18426);
+      if (produto18426Final) {
+        console.log('✅ Produto 18426 no array final ANTES do setState:', produto18426Final);
+      } else {
+        console.log('❌ Produto 18426 NÃO está no array final antes do setState!');
       }
 
       if (produtosNormalizados.length > 0) {
         setSelectedProduct(produtosNormalizados[0]);
       }
 
-      console.log(`✅ Primeira página carregada. hasMore: ${hasMore ? 'SIM' : 'NÃO'}`);
+      console.log(`✅ Primeira página carregada. hasMore: ${initialHasMore ? 'SIM' : 'NÃO'}`);
       setError(null);
 
     } catch (err) {
@@ -387,6 +440,7 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [searchParams]);
 
+  // Função para carregar mais produtos
   const fetchMoreProdutos = useCallback(async () => {
     if (!hasMore || loadingMore) {
       console.log(`🛑 Não carregando mais: hasMore=${hasMore}, loadingMore=${loadingMore}`);
@@ -394,6 +448,7 @@ const ProdutoList = ({ searchParams }) => {
     }
 
     console.log(`📄 Carregando página ${page + 1}...`);
+    console.log(`🔍 Parâmetros de busca atuais:`, searchParams);
 
     try {
       setLoadingMore(true);
@@ -436,6 +491,8 @@ const ProdutoList = ({ searchParams }) => {
           });
         }
       } else {
+        // 🔧 CORREÇÃO: Para busca geral (sem filtro), usar a rota padrão
+        console.log(`📦 Carregando mais produtos gerais (página ${nextPage})...`);
         response = await axios.get('/api/produtos', {
           params,
           timeout: 15000
@@ -449,26 +506,33 @@ const ProdutoList = ({ searchParams }) => {
         if (response.data.items) {
           data = response.data.items;
           paginationInfo = response.data.pagination;
-
+          
           console.log(`📦 Página ${nextPage}: ${data.length} produtos recebidos`);
-
+          
           if (paginationInfo) {
             console.log(`📊 Total: ${paginationInfo.totalItems}, Página ${paginationInfo.currentPage}/${paginationInfo.totalPages}`);
             console.log(`🔄 Há próxima página? ${paginationInfo.hasNextPage ? 'SIM' : 'NÃO'}`);
-
-            // 🔧 CORREÇÃO: Usar hasNextPage da resposta da API
-            setHasMore(paginationInfo.hasNextPage === true);
+            
+            // 🔧 CORREÇÃO CRÍTICA: Verificar se realmente tem próxima página
+            const temProximaPagina = paginationInfo.hasNextPage === true && paginationInfo.currentPage < paginationInfo.totalPages;
+            console.log(`🎯 DECISÃO hasMore: ${temProximaPagina ? 'SIM' : 'NÃO'} (hasNextPage: ${paginationInfo.hasNextPage}, página: ${paginationInfo.currentPage}/${paginationInfo.totalPages})`);
+            setHasMore(temProximaPagina);
           } else {
-            setHasMore(data.length >= params.limit);
+            const temMais = data.length >= params.limit;
+            console.log(`🎯 DECISÃO hasMore (fallback): ${temMais ? 'SIM' : 'NÃO'} (recebidos: ${data.length}, limit: ${params.limit})`);
+            setHasMore(temMais);
           }
         } else if (Array.isArray(response.data)) {
           data = response.data;
-          setHasMore(data.length >= params.limit);
+          const temMais = data.length >= params.limit;
+          console.log(`🎯 DECISÃO hasMore (array): ${temMais ? 'SIM' : 'NÃO'} (recebidos: ${data.length}, limit: ${params.limit})`);
+          setHasMore(temMais);
         }
       }
 
       if (!data || data.length === 0) {
         console.log('📄 Última página alcançada - sem mais produtos');
+        console.log(`🛑 Definindo hasMore = false (recebidos: ${data ? data.length : 0} produtos)`);
         setHasMore(false);
         setLoadingMore(false);
         return;
@@ -487,21 +551,20 @@ const ProdutoList = ({ searchParams }) => {
         const newProdutos = [...produtos, ...novosProdutos];
         setProdutos(newProdutos);
 
-        // Manter ordenação se necessário
+        // 🔧 CORREÇÃO: REMOVER ORDENAÇÃO DUPLA
         if (searchParams.filter === 'descricao' && searchParams.term) {
-          const sortedProdutos = [...newProdutos].sort((a, b) =>
-            a.descricao.localeCompare(b.descricao, 'pt-BR')
-          );
-          setFilteredProdutos(sortedProdutos);
+          console.log('📝 Mantendo ordem do backend para novos produtos');
+          setFilteredProdutos(newProdutos); // ← SEM REORDENAÇÃO!
         } else {
           setFilteredProdutos(newProdutos);
         }
 
         setPage(nextPage);
         console.log(`✅ ${novosProdutos.length} novos produtos adicionados. Total: ${newProdutos.length}`);
-        console.log(`🔄 Continue carregando? ${hasMore ? 'SIM' : 'NÃO'}`);
+        console.log(`🔄 Estado hasMore atual: ${hasMore ? 'SIM' : 'NÃO'}`);
+        console.log(`📊 Progresso: ${newProdutos.length} produtos carregados`);
       } else {
-        console.log('🚫 Nenhum produto novo encontrado - parando scroll infinito');
+        console.log('🚫 Nenhum produto novo encontrado (duplicatas) - parando scroll infinito');
         setHasMore(false);
       }
 
@@ -513,21 +576,20 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [page, hasMore, loadingMore, searchParams, produtos]);
 
-  // 🔧 CORREÇÃO ADICIONAL: 
-  // A variável showNoMoreData já existe no código original
-  // Apenas certifique-se de que o indicador de fim de lista mostra informações de debug:
-
-  // Procure por onde renderiza "end-of-list" e substitua por:
-  // {showNoMoreData && (
-  //   <div className="end-of-list">
-  //     ✅ Todos os {filteredProdutos.length} produtos carregados.
-  //     {window.location.hostname === 'localhost' && (
-  //       <div style={{ fontSize: '0.8em', marginTop: '5px', color: '#666' }}>
-  //         Debug: hasMore={hasMore.toString()}, loadingMore={loadingMore.toString()}, page={page}
-  //       </div>
-  //     )}
-  //   </div>
-  // )}
+  // Effect para monitorar mudanças no estado
+  useEffect(() => {
+    console.log('🔄 Estado filteredProdutos mudou!');
+    console.log(`📊 Total de produtos no estado: ${filteredProdutos.length}`);
+    
+    const produto18426NoEstado = filteredProdutos.find(p => p.item_id == 18426);
+    if (produto18426NoEstado) {
+      console.log('✅ Produto 18426 NO ESTADO:', produto18426NoEstado);
+      console.log(`📍 Posição no array: ${filteredProdutos.findIndex(p => p.item_id == 18426) + 1}`);
+    } else {
+      console.log('❌ Produto 18426 NÃO está no estado filteredProdutos!');
+      console.log('🔍 Primeiros 5 IDs no estado:', filteredProdutos.slice(0, 5).map(p => p.item_id));
+    }
+  }, [filteredProdutos]);
 
   // Effect para buscar produtos iniciais
   useEffect(() => {
@@ -593,9 +655,7 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [filteredProdutos, selectedProduct]);
 
-  // ========================================
-  // NAVEGAÇÃO POR TECLADO CORRIGIDA
-  // ========================================
+  // Navegação por teclado
   const handleKeyNavigation = useCallback((direction, virtualRowIndex, colIndex) => {
     console.log(`🎯 Navegação: ${direction}, virtualRow: ${virtualRowIndex}, col: ${colIndex}`);
     console.log(`📍 Estado atual - currentCell:`, currentCell);
@@ -616,11 +676,11 @@ const ProdutoList = ({ searchParams }) => {
         newRowIndex = Math.max(0, realRowIndex - 1);
         console.log(`⬆️ Subindo: ${realRowIndex} -> ${newRowIndex}`);
         break;
-
+        
       case 'down':
         newRowIndex = Math.min(maxRow, realRowIndex + 1);
         console.log(`⬇️ Descendo: ${realRowIndex} -> ${newRowIndex} (max: ${maxRow})`);
-
+        
         // Trigger load more if near end
         if (newRowIndex > maxRow - 10 && hasMore && !loadingMore) {
           console.log(`📥 Próximo do fim, carregando mais produtos...`);
@@ -631,7 +691,7 @@ const ProdutoList = ({ searchParams }) => {
           }, 100);
         }
         break;
-
+        
       case 'left': {
         let foundEditableCell = false;
         for (let col = colIndex - 1; col >= 0; col--) {
@@ -653,7 +713,7 @@ const ProdutoList = ({ searchParams }) => {
         console.log(`⬅️ Esquerda: col ${colIndex} -> ${newColIndex}, row ${realRowIndex} -> ${newRowIndex}`);
         break;
       }
-
+      
       case 'right': {
         let foundEditableCell = false;
         for (let col = colIndex + 1; col <= maxCol; col++) {
@@ -697,7 +757,7 @@ const ProdutoList = ({ searchParams }) => {
         if (targetY < viewportTop + padding || targetY + ITEM_HEIGHT > viewportBottom - padding) {
           const newScrollTop = Math.max(0, targetY - (containerHeight / 3));
           console.log(`🔄 Fazendo scroll para: ${newScrollTop}`);
-
+          
           container.scrollTo({
             top: newScrollTop,
             behavior: 'smooth'
@@ -805,6 +865,29 @@ const ProdutoList = ({ searchParams }) => {
   }, [columns.length]);
 
   const showNoMoreData = !hasMore && !loadingMore && filteredProdutos.length > 0;
+
+  // Debug da renderização
+  console.log('🖥️ RENDERIZAÇÃO - Estado atual:');
+  console.log(`📊 filteredProdutos.length: ${filteredProdutos.length}`);
+  console.log(`📊 virtualizedData.visibleItems.length: ${virtualizedData.visibleItems.length}`);
+
+  const produto18426Render = filteredProdutos.find(p => p.item_id == 18426);
+  const produto18426Visible = virtualizedData.visibleItems.find(p => p.item_id == 18426);
+
+  console.log('🎯 Produto 18426 na renderização:');
+  console.log(`  - No estado filteredProdutos: ${produto18426Render ? 'SIM' : 'NÃO'}`);
+  console.log(`  - Nos itens visíveis: ${produto18426Visible ? 'SIM' : 'NÃO'}`);
+
+  if (produto18426Render) {
+    const posicao = filteredProdutos.findIndex(p => p.item_id == 18426);
+    console.log(`📍 Posição no array completo: ${posicao + 1}/${filteredProdutos.length}`);
+    
+    // Verificar se está no range visível
+    const startIndex = virtualizedData.startIndex;
+    const endIndex = virtualizedData.endIndex;
+    console.log(`📱 Range visível: ${startIndex}-${endIndex}`);
+    console.log(`🔍 Produto 18426 está no range visível? ${posicao >= startIndex && posicao < endIndex ? 'SIM' : 'NÃO'}`);
+  }
 
   // Renderização
   if (loading && filteredProdutos.length === 0) {
@@ -997,6 +1080,7 @@ const ProdutoList = ({ searchParams }) => {
             Carregando mais produtos...
           </div>
         )}
+        
         {/* End of list indicator */}
         {showNoMoreData && (
           <div className="end-of-list">
