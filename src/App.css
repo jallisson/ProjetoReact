@@ -165,7 +165,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background-color: #f8f9fa;
+ /* background-color: #f8f9fa;*/
   /* OTIMIZAÇÃO PARA HEADER FIXO */
   will-change: transform;
 }
