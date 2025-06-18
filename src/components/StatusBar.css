@@ -1,67 +1,358 @@
+/* Adicionar ao arquivo src/components/StatusBar.css */
+
+/* =============================================== */
+/* STATUSBAR EDITÁVEL                             */
+/* =============================================== */
+
 .status-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
-  background-color: #282c34;
-  color: white;
+  background-color: var(--status-bg, #282c34);
+  color: var(--status-text, white);
   padding: 8px 16px;
   display: flex;
   align-items: center;
   font-size: 14px;
   z-index: 100;
   box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
-  border-top: 1px solid #444;
-  height: 36px;
+  border-top: 1px solid var(--border-color, #444);
+  min-height: 44px;
+  gap: 10px;
 }
 
 .status-code {
   font-weight: bold;
-  margin-right: 10px;
-  background-color: #4caf50;
-  padding: 2px 6px;
-  border-radius: 3px;
-  min-width: 40px;
+  background-color: var(--status-code-bg, #4caf50);
+  padding: 4px 8px;
+  border-radius: 4px;
+  min-width: 50px;
   text-align: center;
+  color: white;
+  flex-shrink: 0;
 }
+
+/* =============================================== */
+/* DESCRIÇÃO EDITÁVEL                             */
+/* =============================================== */
 
 .status-description {
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: all 0.2s ease;
+}
+
+.status-description.editable {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+}
+
+.status-description.editable:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* =============================================== */
+/* CONTAINER DE EDIÇÃO                            */
+/* =============================================== */
+
+.status-edit-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.status-edit-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  color: white;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.status-edit-input:focus {
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+}
+
+.status-edit-input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* =============================================== */
+/* BOTÕES DE AÇÃO                                 */
+/* =============================================== */
+
+.status-edit-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.status-edit-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.status-save-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+.status-save-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.status-cancel-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.status-cancel-btn:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
+.status-edit-btn:active {
+  transform: scale(0.95);
+}
+
+/* =============================================== */
+/* DEBUG INFO                                     */
+/* =============================================== */
+
+.status-debug {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Courier New', monospace;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .status-empty {
   font-style: italic;
-  color: #999;
+  color: rgba(255, 255, 255, 0.6);
+  flex: 1;
 }
 
-/* Ajustar o espaço de rolagem para acomodar a barra de status */
-.fixed-table-container {
-  margin-bottom: 48px; /* Ajustar para acomodar a altura da barra de status + padding */
-}
-
-/* Destacar a linha selecionada com mais ênfase */
-.produtos-table tr.highlighted {
-  background-color: rgba(76, 175, 80, 0.2) !important; /* Verde claro */
-  border-left: 3px solid #4caf50;
-}
-
-/* Estilo de hover para as linhas */
-.produtos-table tr:hover {
-  background-color: rgba(76, 175, 80, 0.1);
-  cursor: pointer;
-}
+/* =============================================== */
+/* RESPONSIVIDADE MOBILE                          */
+/* =============================================== */
 
 @media screen and (max-width: 768px) {
   .status-bar {
-    height: 42px;
-    font-size: 12px;
-    padding: 6px 10px;
+    min-height: 48px;
+    padding: 6px 12px;
+    font-size: 13px;
   }
   
-  .fixed-table-container {
-    margin-bottom: 54px; /* Ajustar para a barra de status maior em telas menores */
+  .status-code {
+    min-width: 45px;
+    padding: 3px 6px;
+    font-size: 12px;
   }
+  
+  .status-edit-input {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  
+  .status-edit-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  .status-debug {
+    display: none; /* Ocultar debug info em mobile */
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .status-bar {
+    min-height: 52px;
+    padding: 8px 10px;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  
+  .status-edit-container {
+    width: 100%;
+    margin-top: 4px;
+  }
+  
+  .status-code {
+    min-width: 40px;
+    font-size: 11px;
+  }
+  
+  .status-edit-input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  
+  .status-edit-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+}
+
+/* =============================================== */
+/* TEMA ESCURO                                    */
+/* =============================================== */
+
+[data-theme="dark"] .status-description.editable {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+[data-theme="dark"] .status-description.editable:hover {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+[data-theme="dark"] .status-edit-input {
+  background: rgba(31, 41, 55, 0.8);
+  border-color: rgba(75, 85, 99, 0.5);
+  color: #e5e7eb;
+}
+
+[data-theme="dark"] .status-edit-input:focus {
+  border-color: #667eea;
+  background: rgba(31, 41, 55, 0.9);
+}
+
+[data-theme="dark"] .status-edit-input::placeholder {
+  color: rgba(229, 231, 235, 0.6);
+}
+
+/* =============================================== */
+/* ANIMAÇÕES E MICRO-INTERAÇÕES                   */
+/* =============================================== */
+
+.status-description.editable::after {
+  content: '✏️';
+  opacity: 0;
+  margin-left: 8px;
+  transition: opacity 0.2s ease;
+  font-size: 12px;
+}
+
+.status-description.editable:hover::after {
+  opacity: 0.7;
+}
+
+/* Feedback visual ao salvar */
+.status-edit-container.saving {
+  animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+/* =============================================== */
+/* MELHORIAS DE ACESSIBILIDADE                   */
+/* =============================================== */
+
+.status-description.editable:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+.status-edit-btn:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Indicador visual para usuários de teclado */
+.status-bar:focus-within {
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(102, 126, 234, 0.3);
+}
+
+/* =============================================== */
+/* PREVENÇÃO DE LAYOUT SHIFT                      */
+/* =============================================== */
+
+.status-edit-container {
+  min-height: 28px; /* Garantir altura mínima */
+}
+
+.status-description.editable {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+/* =============================================== */
+/* ESTADOS DE LOADING/SAVING                      */
+/* =============================================== */
+
+.status-edit-input.saving {
+  pointer-events: none;
+  opacity: 0.7;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.status-edit-btn.saving {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.status-edit-btn.saving::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

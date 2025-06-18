@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import EditableCell from './EditableCell';
+import EditableStatusBar from './EditableStatusBar';
 import axios from 'axios';
 import './StatusBar.css';
 
@@ -26,10 +27,9 @@ const getApiUrl = () => {
     return 'https://projetoreact-1.onrender.com';
   }
 
-  // Railway (aplicação única - CORREÇÃO AQUI)
+  // Railway (aplicação única)
   if (hostname.includes('railway.app') || hostname.includes('up.railway.app')) {
     console.log('🚂 Ambiente: PRODUÇÃO (Railway - App única)');
-    // No Railway, o backend está na mesma URL que o frontend
     return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
   }
 
@@ -45,9 +45,9 @@ console.log('🌐 API configurada para:', API_URL);
 console.log('📍 Frontend rodando em:', window.location.origin);
 
 // CONSTANTES PARA VIRTUALIZAÇÃO
-const ITEM_HEIGHT = 36; // Altura de cada linha em pixels
-const BUFFER_SIZE = 5; // Número de itens extras para renderizar antes/depois da área visível
-const OVERSCAN = 3; // Itens extras para suavizar o scroll
+const ITEM_HEIGHT = 36;
+const BUFFER_SIZE = 5;
+const OVERSCAN = 3;
 
 const ProdutoList = ({ searchParams }) => {
   const [produtos, setProdutos] = useState([]);
@@ -68,7 +68,7 @@ const ProdutoList = ({ searchParams }) => {
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
 
-  // Definir colunas da tabela - TODAS AS COLUNAS
+  // Definir colunas da tabela
   const columns = [
     { id: 'item_id', header: 'Código', editable: false, type: 'text' },
     { id: 'descricao', header: 'Nome', editable: true, type: 'text' },
@@ -176,6 +176,104 @@ const ProdutoList = ({ searchParams }) => {
     return 0;
   };
 
+  // 🆕 NOVA FUNÇÃO: Atualizar descrição via StatusBar
+  const handleUpdateDescription = useCallback(async (productId, newDescription) => {
+    try {
+      console.log(`📝 Atualizando descrição via StatusBar: ${productId} -> "${newDescription}"`);
+      
+      const produtoIndex = produtos.findIndex(p =>
+        (p.item_id?.toString() || p.id?.toString()) === productId.toString()
+      );
+
+      if (produtoIndex === -1) {
+        console.error('❌ Produto não encontrado para atualização');
+        return;
+      }
+
+      const produtoAtualizado = { ...produtos[produtoIndex], descricao: newDescription };
+
+      // Atualização otimista
+      const produtosAtualizados = [...produtos];
+      produtosAtualizados[produtoIndex] = produtoAtualizado;
+      setProdutos(produtosAtualizados);
+
+      const filteredIndex = filteredProdutos.findIndex(p =>
+        (p.item_id?.toString() || p.id?.toString()) === productId.toString()
+      );
+
+      if (filteredIndex !== -1) {
+        const filteredAtualizados = [...filteredProdutos];
+        filteredAtualizados[filteredIndex] = produtoAtualizado;
+        setFilteredProdutos(filteredAtualizados);
+      }
+
+      if (selectedProduct && selectedProduct.item_id.toString() === productId.toString()) {
+        setSelectedProduct(produtoAtualizado);
+      }
+
+      try {
+        await axios.put(`/api/produtos/${productId}`, {
+          descricao: newDescription
+        }, { timeout: 10000 });
+
+        console.log(`✅ Descrição atualizada com sucesso via StatusBar`);
+        setError(null);
+        
+      } catch (apiError) {
+        console.error('❌ Erro ao atualizar descrição na API:', apiError);
+        setError(`Erro ao atualizar descrição: ${apiError.message}`);
+
+        // Reverter mudanças
+        if (produtoIndex !== -1) {
+          const produtosRevertidos = [...produtos];
+          produtosRevertidos[produtoIndex] = produtos[produtoIndex];
+          setProdutos(produtosRevertidos);
+        }
+
+        if (filteredIndex !== -1) {
+          const filteredRevertidos = [...filteredProdutos];
+          filteredRevertidos[filteredIndex] = filteredProdutos[filteredIndex];
+          setFilteredProdutos(filteredRevertidos);
+        }
+
+        if (selectedProduct && selectedProduct.item_id.toString() === productId.toString()) {
+          setSelectedProduct(produtos[produtoIndex]);
+        }
+      }
+
+    } catch (err) {
+      console.error('❌ Erro crítico ao atualizar descrição:', err);
+      setError('Erro ao atualizar a descrição. Tente novamente.');
+    }
+  }, [produtos, filteredProdutos, selectedProduct]);
+
+  // 🆕 NOVA FUNÇÃO: Atalhos de teclado globais
+  const handleGlobalKeyDown = useCallback((e) => {
+    // F2 para editar descrição na StatusBar
+    if (e.key === 'F2' && selectedProduct) {
+      e.preventDefault();
+      const statusBarDescriptionElement = document.querySelector('.status-description.editable');
+      if (statusBarDescriptionElement) {
+        statusBarDescriptionElement.click();
+      }
+    }
+    
+    // Ctrl+E para editar descrição (alternativa ao F2)
+    if (e.ctrlKey && e.key === 'e' && selectedProduct) {
+      e.preventDefault();
+      const statusBarDescriptionElement = document.querySelector('.status-description.editable');
+      if (statusBarDescriptionElement) {
+        statusBarDescriptionElement.click();
+      }
+    }
+
+    // Ctrl+D para duplicar produto (funcionalidade extra para futuro)
+    if (e.ctrlKey && e.key === 'd' && selectedProduct) {
+      e.preventDefault();
+      console.log('🔄 Duplicar produto:', selectedProduct.item_id);
+    }
+  }, [selectedProduct]);
+
   // Função para testar conectividade da API
   const testApiConnection = async () => {
     const testUrls = [
@@ -208,13 +306,6 @@ const ProdutoList = ({ searchParams }) => {
   const normalizeProductData = (backendItems) => {
     console.log('🔄 Normalizando dados do backend...');
     console.log('📋 Total de itens recebidos:', backendItems.length);
-    
-    // Debug específico para produto 18426
-    const produto18426Raw = backendItems.find(item => item.item_id == 18426);
-    console.log('🎯 Produto 18426 nos dados brutos:', produto18426Raw ? 'ENCONTRADO' : 'NÃO ENCONTRADO');
-    if (produto18426Raw) {
-      console.log('📋 Dados do 18426:', produto18426Raw);
-    }
 
     const normalized = backendItems.map(item => {
       const produto = {};
@@ -245,13 +336,6 @@ const ProdutoList = ({ searchParams }) => {
       return produto;
     });
 
-    // Verificar se 18426 está no resultado final
-    const produto18426Final = normalized.find(p => p.item_id == 18426);
-    console.log('✅ Produto 18426 após normalização:', produto18426Final ? 'ENCONTRADO' : 'PERDIDO');
-    if (produto18426Final) {
-      console.log('📋 18426 normalizado:', produto18426Final);
-    }
-
     console.log('✅ Normalização concluída:', normalized.length, 'produtos');
     return normalized;
   };
@@ -276,7 +360,7 @@ const ProdutoList = ({ searchParams }) => {
 
       const params = {
         page: 1,
-        limit: 1000, // Primeira página com 50 itens
+        limit: 1000,
         sort: 'asc'
       };
 
@@ -312,16 +396,6 @@ const ProdutoList = ({ searchParams }) => {
         }
 
         console.log('📡 Resposta da API recebida:', response?.data);
-        
-        // 🔍 DEBUG ESPECÍFICO para busca geral
-        if (!searchParams.term || !searchParams.filter) {
-          console.log('🔍 DEBUG BUSCA GERAL:');
-          console.log('  - Pagination info:', response?.data?.pagination);
-          console.log('  - Items length:', response?.data?.items?.length);
-          console.log('  - HasNextPage:', response?.data?.pagination?.hasNextPage);
-          console.log('  - CurrentPage:', response?.data?.pagination?.currentPage);
-          console.log('  - TotalPages:', response?.data?.pagination?.totalPages);
-        }
 
       } catch (apiError) {
         console.error('❌ Erro na API:', apiError);
@@ -350,16 +424,13 @@ const ProdutoList = ({ searchParams }) => {
           console.log(`📄 Página ${paginationInfo.currentPage} de ${paginationInfo.totalPages}`);
           console.log(`🔄 Há mais páginas? ${paginationInfo.hasNextPage ? 'SIM' : 'NÃO'}`);
           
-          // 🔧 CORREÇÃO: Usar hasNextPage da API corretamente
           initialHasMore = paginationInfo.hasNextPage === true;
         } else {
-          // Fallback se não tiver paginationInfo
           initialHasMore = data.length >= params.limit;
         }
       } else if (Array.isArray(response.data)) {
         data = response.data;
         console.log(`✅ ${data.length} produtos recebidos via array direto`);
-        // 🔧 CORREÇÃO: Para array direto, verificar se tem mais páginas
         initialHasMore = data.length >= params.limit;
       }
 
@@ -377,49 +448,21 @@ const ProdutoList = ({ searchParams }) => {
 
       setProdutos(produtosNormalizados);
 
-      // 🔧 CORREÇÃO PRINCIPAL: REMOVER ORDENAÇÃO ALFABÉTICA DESNECESSÁRIA
-      // O backend já retorna ordenado alfabeticamente!
-      
-      // Para filtro "moto", manter apenas ordenação alfabética
       if (searchParams.filter === 'moto' && searchParams.term) {
         console.log('🏍️ Aplicando apenas ordenação para filtro moto');
         const sortedProdutos = [...produtosNormalizados].sort((a, b) =>
           a.descricao.localeCompare(b.descricao, 'pt-BR')
         );
         setFilteredProdutos(sortedProdutos);
-        setHasMore(false); // Moto não tem scroll infinito
-      } 
-      // 🔧 CORREÇÃO: NÃO REORDENAR - o backend já vem ordenado!
-      else if (searchParams.filter === 'descricao' && searchParams.term) {
+        setHasMore(false);
+      } else if (searchParams.filter === 'descricao' && searchParams.term) {
         console.log('📝 Usando ordem do backend (já ordenado alfabeticamente)');
-        setFilteredProdutos(produtosNormalizados); // ← SEM REORDENAÇÃO!
-        setHasMore(initialHasMore); // 🔧 USAR O VALOR CORRETO
-      } 
-      // Para todos os outros casos, usar os dados como recebidos da API
-      else {
+        setFilteredProdutos(produtosNormalizados);
+        setHasMore(initialHasMore);
+      } else {
         console.log('📋 Usando dados como recebidos da API (sem filtração adicional)');
         setFilteredProdutos(produtosNormalizados);
-        setHasMore(initialHasMore); // 🔧 USAR O VALOR CORRETO
-        
-        // 🔧 CORREÇÃO ESPECÍFICA: Debug para busca geral
-        if (!searchParams.term && !searchParams.filter) {
-          console.log('🌍 BUSCA GERAL (sem filtros):');
-          console.log(`  - Produtos carregados: ${produtosNormalizados.length}`);
-          console.log(`  - hasMore: ${initialHasMore ? 'SIM' : 'NÃO'}`);
-          console.log(`  - Deve carregar mais páginas para mostrar todos os 43.301 produtos`);
-        }
-      }
-
-      // Debug pós-setState
-      console.log('🔍 DEBUG pós-normalização e pós-setState:');
-      console.log(`📊 Total de produtos normalizados: ${produtosNormalizados.length}`);
-      console.log(`🔄 hasMore definido como: ${initialHasMore ? 'SIM' : 'NÃO'}`);
-      
-      const produto18426Final = produtosNormalizados.find(p => p.item_id == 18426);
-      if (produto18426Final) {
-        console.log('✅ Produto 18426 no array final ANTES do setState:', produto18426Final);
-      } else {
-        console.log('❌ Produto 18426 NÃO está no array final antes do setState!');
+        setHasMore(initialHasMore);
       }
 
       if (produtosNormalizados.length > 0) {
@@ -448,7 +491,6 @@ const ProdutoList = ({ searchParams }) => {
     }
 
     console.log(`📄 Carregando página ${page + 1}...`);
-    console.log(`🔍 Parâmetros de busca atuais:`, searchParams);
 
     try {
       setLoadingMore(true);
@@ -456,11 +498,10 @@ const ProdutoList = ({ searchParams }) => {
 
       const params = {
         page: nextPage,
-        limit: 50, // Manter consistente com a primeira página
+        limit: 50,
         sort: 'asc'
       };
 
-      // Para filtros específicos que não devem ter scroll infinito
       if (searchParams.filter === 'moto' || searchParams.filter === 'codigo') {
         console.log('🏍️ Filtro moto/codigo - desabilitando scroll infinito');
         setHasMore(false);
@@ -491,7 +532,6 @@ const ProdutoList = ({ searchParams }) => {
           });
         }
       } else {
-        // 🔧 CORREÇÃO: Para busca geral (sem filtro), usar a rota padrão
         console.log(`📦 Carregando mais produtos gerais (página ${nextPage})...`);
         response = await axios.get('/api/produtos', {
           params,
@@ -513,26 +553,24 @@ const ProdutoList = ({ searchParams }) => {
             console.log(`📊 Total: ${paginationInfo.totalItems}, Página ${paginationInfo.currentPage}/${paginationInfo.totalPages}`);
             console.log(`🔄 Há próxima página? ${paginationInfo.hasNextPage ? 'SIM' : 'NÃO'}`);
             
-            // 🔧 CORREÇÃO CRÍTICA: Verificar se realmente tem próxima página
             const temProximaPagina = paginationInfo.hasNextPage === true && paginationInfo.currentPage < paginationInfo.totalPages;
-            console.log(`🎯 DECISÃO hasMore: ${temProximaPagina ? 'SIM' : 'NÃO'} (hasNextPage: ${paginationInfo.hasNextPage}, página: ${paginationInfo.currentPage}/${paginationInfo.totalPages})`);
+            console.log(`🎯 DECISÃO hasMore: ${temProximaPagina ? 'SIM' : 'NÃO'}`);
             setHasMore(temProximaPagina);
           } else {
             const temMais = data.length >= params.limit;
-            console.log(`🎯 DECISÃO hasMore (fallback): ${temMais ? 'SIM' : 'NÃO'} (recebidos: ${data.length}, limit: ${params.limit})`);
+            console.log(`🎯 DECISÃO hasMore (fallback): ${temMais ? 'SIM' : 'NÃO'}`);
             setHasMore(temMais);
           }
         } else if (Array.isArray(response.data)) {
           data = response.data;
           const temMais = data.length >= params.limit;
-          console.log(`🎯 DECISÃO hasMore (array): ${temMais ? 'SIM' : 'NÃO'} (recebidos: ${data.length}, limit: ${params.limit})`);
+          console.log(`🎯 DECISÃO hasMore (array): ${temMais ? 'SIM' : 'NÃO'}`);
           setHasMore(temMais);
         }
       }
 
       if (!data || data.length === 0) {
         console.log('📄 Última página alcançada - sem mais produtos');
-        console.log(`🛑 Definindo hasMore = false (recebidos: ${data ? data.length : 0} produtos)`);
         setHasMore(false);
         setLoadingMore(false);
         return;
@@ -551,18 +589,15 @@ const ProdutoList = ({ searchParams }) => {
         const newProdutos = [...produtos, ...novosProdutos];
         setProdutos(newProdutos);
 
-        // 🔧 CORREÇÃO: REMOVER ORDENAÇÃO DUPLA
         if (searchParams.filter === 'descricao' && searchParams.term) {
           console.log('📝 Mantendo ordem do backend para novos produtos');
-          setFilteredProdutos(newProdutos); // ← SEM REORDENAÇÃO!
+          setFilteredProdutos(newProdutos);
         } else {
           setFilteredProdutos(newProdutos);
         }
 
         setPage(nextPage);
         console.log(`✅ ${novosProdutos.length} novos produtos adicionados. Total: ${newProdutos.length}`);
-        console.log(`🔄 Estado hasMore atual: ${hasMore ? 'SIM' : 'NÃO'}`);
-        console.log(`📊 Progresso: ${newProdutos.length} produtos carregados`);
       } else {
         console.log('🚫 Nenhum produto novo encontrado (duplicatas) - parando scroll infinito');
         setHasMore(false);
@@ -576,27 +611,19 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [page, hasMore, loadingMore, searchParams, produtos]);
 
-  // Effect para monitorar mudanças no estado
-  useEffect(() => {
-    console.log('🔄 Estado filteredProdutos mudou!');
-    console.log(`📊 Total de produtos no estado: ${filteredProdutos.length}`);
-    
-    const produto18426NoEstado = filteredProdutos.find(p => p.item_id == 18426);
-    if (produto18426NoEstado) {
-      console.log('✅ Produto 18426 NO ESTADO:', produto18426NoEstado);
-      console.log(`📍 Posição no array: ${filteredProdutos.findIndex(p => p.item_id == 18426) + 1}`);
-    } else {
-      console.log('❌ Produto 18426 NÃO está no estado filteredProdutos!');
-      console.log('🔍 Primeiros 5 IDs no estado:', filteredProdutos.slice(0, 5).map(p => p.item_id));
-    }
-  }, [filteredProdutos]);
-
-  // Effect para buscar produtos iniciais
+  // Effects
   useEffect(() => {
     fetchInitialProdutos();
   }, [fetchInitialProdutos]);
 
-  // Effect para scroll e redimensionamento
+  // 🆕 Effect para atalhos de teclado globais
+  useEffect(() => {
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [handleGlobalKeyDown]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -640,14 +667,12 @@ const ProdutoList = ({ searchParams }) => {
     };
   }, [fetchMoreProdutos, hasMore, loadingMore]);
 
-  // Effect para atualizar produto selecionado
   useEffect(() => {
     if (filteredProdutos.length > 0 && currentCell.rowIndex >= 0 && currentCell.rowIndex < filteredProdutos.length) {
       setSelectedProduct(filteredProdutos[currentCell.rowIndex]);
     }
   }, [currentCell, filteredProdutos]);
 
-  // Effect inicial para definir primeiro produto selecionado
   useEffect(() => {
     if (filteredProdutos.length > 0 && !selectedProduct) {
       setSelectedProduct(filteredProdutos[0]);
@@ -658,13 +683,8 @@ const ProdutoList = ({ searchParams }) => {
   // Navegação por teclado
   const handleKeyNavigation = useCallback((direction, virtualRowIndex, colIndex) => {
     console.log(`🎯 Navegação: ${direction}, virtualRow: ${virtualRowIndex}, col: ${colIndex}`);
-    console.log(`📍 Estado atual - currentCell:`, currentCell);
-    console.log(`📊 Total produtos: ${filteredProdutos.length}, Virtual range: ${virtualizedData.startIndex}-${virtualizedData.endIndex}`);
 
-    // Calcular o índice real no array completo de produtos
     const realRowIndex = virtualRowIndex + virtualizedData.startIndex;
-    console.log(`🎯 Índice real calculado: ${realRowIndex}`);
-
     const maxRow = filteredProdutos.length - 1;
     const maxCol = columns.length - 1;
 
@@ -674,16 +694,12 @@ const ProdutoList = ({ searchParams }) => {
     switch (direction) {
       case 'up':
         newRowIndex = Math.max(0, realRowIndex - 1);
-        console.log(`⬆️ Subindo: ${realRowIndex} -> ${newRowIndex}`);
         break;
         
       case 'down':
         newRowIndex = Math.min(maxRow, realRowIndex + 1);
-        console.log(`⬇️ Descendo: ${realRowIndex} -> ${newRowIndex} (max: ${maxRow})`);
         
-        // Trigger load more if near end
         if (newRowIndex > maxRow - 10 && hasMore && !loadingMore) {
-          console.log(`📥 Próximo do fim, carregando mais produtos...`);
           setTimeout(() => {
             if (hasMore && !loadingMore) {
               fetchMoreProdutos();
@@ -710,7 +726,6 @@ const ProdutoList = ({ searchParams }) => {
             }
           }
         }
-        console.log(`⬅️ Esquerda: col ${colIndex} -> ${newColIndex}, row ${realRowIndex} -> ${newRowIndex}`);
         break;
       }
       
@@ -732,7 +747,6 @@ const ProdutoList = ({ searchParams }) => {
             }
           }
         }
-        console.log(`➡️ Direita: col ${colIndex} -> ${newColIndex}, row ${realRowIndex} -> ${newRowIndex}`);
         break;
       }
     }
@@ -741,8 +755,6 @@ const ProdutoList = ({ searchParams }) => {
     newRowIndex = Math.max(0, Math.min(maxRow, newRowIndex));
     newColIndex = Math.max(0, Math.min(maxCol, newColIndex));
 
-    console.log(`✅ Novos índices finais: row=${newRowIndex}, col=${newColIndex}`);
-
     // Scroll automático apenas se a linha mudou
     if (newRowIndex !== realRowIndex) {
       const container = containerRef.current;
@@ -750,13 +762,10 @@ const ProdutoList = ({ searchParams }) => {
         const targetY = newRowIndex * ITEM_HEIGHT;
         const viewportTop = scrollTop;
         const viewportBottom = scrollTop + containerHeight;
-        const padding = ITEM_HEIGHT * 2; // Padding extra para visibilidade
-
-        console.log(`📺 Scroll check - targetY: ${targetY}, viewport: ${viewportTop}-${viewportBottom}`);
+        const padding = ITEM_HEIGHT * 2;
 
         if (targetY < viewportTop + padding || targetY + ITEM_HEIGHT > viewportBottom - padding) {
           const newScrollTop = Math.max(0, targetY - (containerHeight / 3));
-          console.log(`🔄 Fazendo scroll para: ${newScrollTop}`);
           
           container.scrollTo({
             top: newScrollTop,
@@ -772,16 +781,15 @@ const ProdutoList = ({ searchParams }) => {
     // Atualizar produto selecionado
     if (newRowIndex >= 0 && newRowIndex < filteredProdutos.length) {
       setSelectedProduct(filteredProdutos[newRowIndex]);
-      console.log(`🎯 Produto selecionado: ${filteredProdutos[newRowIndex]?.item_id} - ${filteredProdutos[newRowIndex]?.descricao}`);
     }
-  }, [virtualizedData, filteredProdutos, columns, hasMore, loadingMore, fetchMoreProdutos, scrollTop, containerHeight, currentCell]);
+  }, [virtualizedData, filteredProdutos, columns, hasMore, loadingMore, fetchMoreProdutos, scrollTop, containerHeight]);
 
   const handleRowMouseEnter = useCallback((produto, realRowIndex) => {
     setSelectedProduct(produto);
     setCurrentCell(prev => ({ ...prev, rowIndex: realRowIndex }));
   }, []);
 
-  // Cell change handler
+  // 🆕 FUNÇÃO ATUALIZADA: Cell change handler com sincronização StatusBar
   const handleCellChange = useCallback(async (id, field, value) => {
     try {
       const produtoIndex = produtos.findIndex(p =>
@@ -807,8 +815,12 @@ const ProdutoList = ({ searchParams }) => {
         setFilteredProdutos(filteredAtualizados);
       }
 
+      // 🆕 SINCRONIZAR COM STATUSBAR
       if (selectedProduct && selectedProduct.item_id.toString() === id.toString()) {
         setSelectedProduct(produtoAtualizado);
+        if (field === 'descricao') {
+          console.log(`📝 Descrição sincronizada na StatusBar: "${value}"`);
+        }
       }
 
       // Mapear campos do frontend para backend
@@ -831,6 +843,7 @@ const ProdutoList = ({ searchParams }) => {
       try {
         await axios.put(`/api/produtos/${id}`, dadosParaEnviar, { timeout: 10000 });
         console.log(`✅ Produto ${id} atualizado:`, dadosParaEnviar);
+        
       } catch (error) {
         console.error('❌ Erro ao atualizar na API:', error);
         setError(`Erro ao atualizar o produto: ${error.message}`);
@@ -865,29 +878,6 @@ const ProdutoList = ({ searchParams }) => {
   }, [columns.length]);
 
   const showNoMoreData = !hasMore && !loadingMore && filteredProdutos.length > 0;
-
-  // Debug da renderização
-  console.log('🖥️ RENDERIZAÇÃO - Estado atual:');
-  console.log(`📊 filteredProdutos.length: ${filteredProdutos.length}`);
-  console.log(`📊 virtualizedData.visibleItems.length: ${virtualizedData.visibleItems.length}`);
-
-  const produto18426Render = filteredProdutos.find(p => p.item_id == 18426);
-  const produto18426Visible = virtualizedData.visibleItems.find(p => p.item_id == 18426);
-
-  console.log('🎯 Produto 18426 na renderização:');
-  console.log(`  - No estado filteredProdutos: ${produto18426Render ? 'SIM' : 'NÃO'}`);
-  console.log(`  - Nos itens visíveis: ${produto18426Visible ? 'SIM' : 'NÃO'}`);
-
-  if (produto18426Render) {
-    const posicao = filteredProdutos.findIndex(p => p.item_id == 18426);
-    console.log(`📍 Posição no array completo: ${posicao + 1}/${filteredProdutos.length}`);
-    
-    // Verificar se está no range visível
-    const startIndex = virtualizedData.startIndex;
-    const endIndex = virtualizedData.endIndex;
-    console.log(`📱 Range visível: ${startIndex}-${endIndex}`);
-    console.log(`🔍 Produto 18426 está no range visível? ${posicao >= startIndex && posicao < endIndex ? 'SIM' : 'NÃO'}`);
-  }
 
   // Renderização
   if (loading && filteredProdutos.length === 0) {
@@ -963,11 +953,8 @@ const ProdutoList = ({ searchParams }) => {
                   style={{ height: `${ITEM_HEIGHT}px` }}
                 >
                   {columns.map((column, colIndex) => {
-                    // Valor bruto do objeto produto
                     const valorBruto = produto[column.id];
-                    // Formatar o valor para exibição
                     const valorFormatado = formatarValor(valorBruto, column);
-                    // O valor para edição deve ser sempre a representação string do valor bruto
                     const valorParaEdicao = (valorBruto !== undefined && valorBruto !== null)
                       ? String(valorBruto)
                       : '';
@@ -1005,7 +992,6 @@ const ProdutoList = ({ searchParams }) => {
                               setSelectedProduct(produto);
                             }}
                             onKeyDown={(e) => {
-                              // Permitir navegação mesmo em células não editáveis
                               switch (e.key) {
                                 case 'ArrowUp':
                                   e.preventDefault();
@@ -1052,7 +1038,7 @@ const ProdutoList = ({ searchParams }) => {
               );
             })}
 
-            {/* Espaçador inferior para simular linhas não renderizadas */}
+            {/* Espaçador inferior */}
             {virtualizedData.endIndex < filteredProdutos.length && (
               <tr style={{ height: `${virtualizedData.totalHeight - virtualizedData.offsetY - (virtualizedData.visibleItems.length * ITEM_HEIGHT)}px` }}>
                 <td colSpan={columns.length} style={{ padding: 0, border: 'none' }} />
@@ -1061,7 +1047,7 @@ const ProdutoList = ({ searchParams }) => {
           </tbody>
         </table>
 
-        {/* Loading indicator - só renderizar quando necessário */}
+        {/* Loading indicator */}
         {(hasMore && loadingMore) && (
           <div
             ref={loadingRef}
@@ -1094,22 +1080,40 @@ const ProdutoList = ({ searchParams }) => {
         )}
       </div>
 
-      {/* Status bar com informações de virtualização em desenvolvimento */}
-      <div className="status-bar">
-        {selectedProduct ? (
-          <>
-            <span className="status-code">{selectedProduct.item_id}</span>
-            <span className="status-description">{selectedProduct.descricao}</span>
-            {window.location.hostname === 'localhost' && (
-              <span style={{ fontSize: '0.8em', marginLeft: '10px', color: '#ccc' }}>
-                [{virtualizedData.visibleItems.length}/{filteredProdutos.length}] Row: {currentCell.rowIndex}
-              </span>
-            )}
-          </>
-        ) : (
-          <span className="status-empty">Nenhum produto selecionado</span>
-        )}
-      </div>
+      {/* 🆕 NOVA STATUS BAR EDITÁVEL */}
+      <EditableStatusBar
+        selectedProduct={selectedProduct}
+        onUpdateDescription={handleUpdateDescription}
+        currentCell={currentCell}
+        filteredProdutos={filteredProdutos}
+        virtualizedData={virtualizedData}
+      />
+
+      {/* Debug Helper - só aparece em desenvolvimento */}
+      {window.location.hostname === 'localhost' && (
+        <div style={{ 
+          position: 'fixed', 
+          bottom: '60px', 
+          right: '20px', 
+          background: 'rgba(0,0,0,0.8)', 
+          color: 'white', 
+          padding: '8px 12px', 
+          borderRadius: '6px',
+          fontSize: '11px',
+          fontFamily: 'monospace',
+          pointerEvents: 'none',
+          zIndex: 1001,
+          maxWidth: '200px',
+          lineHeight: '1.3'
+        }}>
+          💡 <strong>Atalhos StatusBar:</strong><br/>
+          🖱️ Clique na descrição<br/>
+          ⌨️ F2 = Editar descrição<br/>
+          ⌨️ Ctrl+E = Editar descrição<br/>
+          ⏎ Enter = Salvar<br/>
+          ⎋ Esc = Cancelar
+        </div>
+      )}
 
       {error && <div className="error-message">{error}</div>}
     </>
