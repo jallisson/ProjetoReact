@@ -918,9 +918,20 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [virtualizedData, filteredProdutos, columns, hasMore, loadingMore, fetchMoreProdutos, scrollTop, containerHeight]);
 
+  // Versão mais robusta que sempre garante uma coluna editável
   const handleRowMouseEnter = useCallback((produto, realRowIndex) => {
     setSelectedProduct(produto);
-    setCurrentCell(prev => ({ ...prev, rowIndex: realRowIndex }));
+    // Não atualizar currentCell aqui - deixar para os handlers individuais das células
+  }, []);
+
+  // 2. ADICIONAR esta nova função para células individuais:
+
+  const handleCellMouseEnter = useCallback((produto, realRowIndex, colIndex) => {
+    setSelectedProduct(produto);
+    setCurrentCell({
+      rowIndex: realRowIndex,
+      colIndex: colIndex
+    });
   }, []);
 
   // 🆕 FUNÇÃO ATUALIZADA: Cell change handler com sincronização StatusBar
@@ -1102,6 +1113,8 @@ const ProdutoList = ({ searchParams }) => {
                           padding: '0 !important',
                           height: '36px'
                         }}
+                        // 🆕 ADICIONAR este handler para cada célula
+                        onMouseEnter={() => handleCellMouseEnter(produto, realRowIndex, colIndex)}
                       >
                         {column.editable ? (
                           <EditableCell
@@ -1150,6 +1163,8 @@ const ProdutoList = ({ searchParams }) => {
                                   break;
                               }
                             }}
+                            // 🆕 ADICIONAR também aqui para células não editáveis
+                            onMouseEnter={() => handleCellMouseEnter(produto, realRowIndex, colIndex)}
                             style={{
                               padding: '0.5rem 0.35rem',
                               outline: 'none',
