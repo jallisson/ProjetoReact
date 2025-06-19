@@ -180,7 +180,7 @@ const ProdutoList = ({ searchParams }) => {
   const handleUpdateDescription = useCallback(async (productId, newDescription) => {
     try {
       console.log(`📝 Atualizando descrição via StatusBar: ${productId} -> "${newDescription}"`);
-      
+
       const produtoIndex = produtos.findIndex(p =>
         (p.item_id?.toString() || p.id?.toString()) === productId.toString()
       );
@@ -218,7 +218,7 @@ const ProdutoList = ({ searchParams }) => {
 
         console.log(`✅ Descrição atualizada com sucesso via StatusBar`);
         setError(null);
-        
+
       } catch (apiError) {
         console.error('❌ Erro ao atualizar descrição na API:', apiError);
         setError(`Erro ao atualizar descrição: ${apiError.message}`);
@@ -248,31 +248,165 @@ const ProdutoList = ({ searchParams }) => {
   }, [produtos, filteredProdutos, selectedProduct]);
 
   // 🆕 NOVA FUNÇÃO: Atalhos de teclado globais
+  // Fragmento para substituir a função handleGlobalKeyDown no ProdutoList.jsx
+
+  // 🆕 NOVA FUNÇÃO: Atalhos de teclado globais CORRIGIDA
   const handleGlobalKeyDown = useCallback((e) => {
+    // Verificar se estamos editando no StatusBar
+    const isEditingStatusBar = document.querySelector('.status-edit-input');
+    const isEditingCell = document.querySelector('.cell-input');
+
+    // Se estiver editando em qualquer lugar, não processar atalhos globais
+    if (isEditingStatusBar || isEditingCell) {
+      console.log('🚫 Ignorando atalho global - editando em:', isEditingStatusBar ? 'StatusBar' : 'Célula');
+      return;
+    }
+
+    // Verificar se o foco está em um input ou textarea
+    const activeElement = document.activeElement;
+    if (activeElement && (
+      activeElement.tagName === 'INPUT' ||
+      activeElement.tagName === 'TEXTAREA' ||
+      activeElement.isContentEditable
+    )) {
+      console.log('🚫 Ignorando atalho global - foco em input/textarea');
+      return;
+    }
+
     // F2 para editar descrição na StatusBar
     if (e.key === 'F2' && selectedProduct) {
       e.preventDefault();
+      console.log('🎹 F2 pressionado - editando descrição');
       const statusBarDescriptionElement = document.querySelector('.status-description.editable');
       if (statusBarDescriptionElement) {
         statusBarDescriptionElement.click();
       }
+      return;
     }
-    
+
     // Ctrl+E para editar descrição (alternativa ao F2)
     if (e.ctrlKey && e.key === 'e' && selectedProduct) {
       e.preventDefault();
+      console.log('🎹 Ctrl+E pressionado - editando descrição');
       const statusBarDescriptionElement = document.querySelector('.status-description.editable');
       if (statusBarDescriptionElement) {
         statusBarDescriptionElement.click();
       }
+      return;
     }
 
-    // Ctrl+D para duplicar produto (funcionalidade extra para futuro)
-    if (e.ctrlKey && e.key === 'd' && selectedProduct) {
+    // Home - ir para o primeiro produto
+    if (e.key === 'Home' && filteredProdutos.length > 0) {
       e.preventDefault();
-      console.log('🔄 Duplicar produto:', selectedProduct.item_id);
+      console.log('🎹 Home pressionado - indo para primeiro produto');
+      setCurrentCell({ rowIndex: 0, colIndex: currentCell.colIndex });
+      setSelectedProduct(filteredProdutos[0]);
+
+      // Scroll para o topo
+      const container = containerRef.current;
+      if (container) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
     }
-  }, [selectedProduct]);
+
+    // End - ir para o último produto
+    if (e.key === 'End' && filteredProdutos.length > 0) {
+      e.preventDefault();
+      const lastIndex = filteredProdutos.length - 1;
+      console.log(`🎹 End pressionado - indo para último produto (${lastIndex})`);
+      setCurrentCell({ rowIndex: lastIndex, colIndex: currentCell.colIndex });
+      setSelectedProduct(filteredProdutos[lastIndex]);
+
+      // Scroll para o final
+      const container = containerRef.current;
+      if (container) {
+        const targetY = lastIndex * ITEM_HEIGHT;
+        container.scrollTo({ top: targetY, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    // Page Up - subir uma "página"
+    if (e.key === 'PageUp' && filteredProdutos.length > 0) {
+      e.preventDefault();
+      const pageSize = Math.floor(containerHeight / ITEM_HEIGHT) || 10;
+      const newIndex = Math.max(0, currentCell.rowIndex - pageSize);
+      console.log(`🎹 PageUp pressionado - subindo ${pageSize} linhas para ${newIndex}`);
+
+      setCurrentCell({ rowIndex: newIndex, colIndex: currentCell.colIndex });
+      setSelectedProduct(filteredProdutos[newIndex]);
+
+      const container = containerRef.current;
+      if (container) {
+        const targetY = newIndex * ITEM_HEIGHT;
+        container.scrollTo({ top: targetY, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    // Page Down - descer uma "página"
+    if (e.key === 'PageDown' && filteredProdutos.length > 0) {
+      e.preventDefault();
+      const pageSize = Math.floor(containerHeight / ITEM_HEIGHT) || 10;
+      const newIndex = Math.min(filteredProdutos.length - 1, currentCell.rowIndex + pageSize);
+      console.log(`🎹 PageDown pressionado - descendo ${pageSize} linhas para ${newIndex}`);
+
+      setCurrentCell({ rowIndex: newIndex, colIndex: currentCell.colIndex });
+      setSelectedProduct(filteredProdutos[newIndex]);
+
+      const container = containerRef.current;
+      if (container) {
+        const targetY = newIndex * ITEM_HEIGHT;
+        container.scrollTo({ top: targetY, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    // Ctrl+F - focar na barra de pesquisa
+    if (e.ctrlKey && e.key === 'f') {
+      e.preventDefault();
+      console.log('🎹 Ctrl+F pressionado - focando barra de pesquisa');
+      const searchInput = document.querySelector('#search-term');
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.select();
+      }
+      return;
+    }
+
+    // Escape - garantir que voltamos para a tabela
+    if (e.key === 'Escape') {
+      console.log('🎹 Escape pressionado - retornando foco para tabela');
+      const currentCellElement = document.querySelector(`#cell-${currentCell.rowIndex}-${currentCell.colIndex}`);
+      if (currentCellElement) {
+        currentCellElement.focus();
+      }
+      return;
+    }
+
+  }, [selectedProduct, filteredProdutos, currentCell, containerHeight, containerRef]);
+
+  // 🆕 FUNÇÃO AUXILIAR: Garantir foco na tabela
+  const ensureTableFocus = useCallback(() => {
+    setTimeout(() => {
+      const currentCellElement = document.querySelector(`#cell-${currentCell.rowIndex}-${currentCell.colIndex}`);
+      if (currentCellElement) {
+        console.log(`🎯 Garantindo foco na célula: row=${currentCell.rowIndex}, col=${currentCell.colIndex}`);
+        currentCellElement.focus();
+      } else {
+        // Fallback
+        const editableCells = document.querySelectorAll('.editable-cell');
+        if (editableCells.length > 0) {
+          console.log('🎯 Fallback: focando primeira célula editável');
+          editableCells[0].focus();
+        }
+      }
+    }, 100);
+  }, [currentCell]);
+
+  // Exportar a função para uso em outras partes do componente se necessário
+  window.ensureTableFocus = ensureTableFocus;
 
   // Função para testar conectividade da API
   const testApiConnection = async () => {
@@ -418,12 +552,12 @@ const ProdutoList = ({ searchParams }) => {
         data = response.data.items;
         paginationInfo = response.data.pagination;
         console.log(`✅ ${data.length} produtos recebidos da página 1`);
-        
+
         if (paginationInfo) {
           console.log(`📊 Total de itens: ${paginationInfo.totalItems}`);
           console.log(`📄 Página ${paginationInfo.currentPage} de ${paginationInfo.totalPages}`);
           console.log(`🔄 Há mais páginas? ${paginationInfo.hasNextPage ? 'SIM' : 'NÃO'}`);
-          
+
           initialHasMore = paginationInfo.hasNextPage === true;
         } else {
           initialHasMore = data.length >= params.limit;
@@ -546,13 +680,13 @@ const ProdutoList = ({ searchParams }) => {
         if (response.data.items) {
           data = response.data.items;
           paginationInfo = response.data.pagination;
-          
+
           console.log(`📦 Página ${nextPage}: ${data.length} produtos recebidos`);
-          
+
           if (paginationInfo) {
             console.log(`📊 Total: ${paginationInfo.totalItems}, Página ${paginationInfo.currentPage}/${paginationInfo.totalPages}`);
             console.log(`🔄 Há próxima página? ${paginationInfo.hasNextPage ? 'SIM' : 'NÃO'}`);
-            
+
             const temProximaPagina = paginationInfo.hasNextPage === true && paginationInfo.currentPage < paginationInfo.totalPages;
             console.log(`🎯 DECISÃO hasMore: ${temProximaPagina ? 'SIM' : 'NÃO'}`);
             setHasMore(temProximaPagina);
@@ -695,10 +829,10 @@ const ProdutoList = ({ searchParams }) => {
       case 'up':
         newRowIndex = Math.max(0, realRowIndex - 1);
         break;
-        
+
       case 'down':
         newRowIndex = Math.min(maxRow, realRowIndex + 1);
-        
+
         if (newRowIndex > maxRow - 10 && hasMore && !loadingMore) {
           setTimeout(() => {
             if (hasMore && !loadingMore) {
@@ -707,7 +841,7 @@ const ProdutoList = ({ searchParams }) => {
           }, 100);
         }
         break;
-        
+
       case 'left': {
         let foundEditableCell = false;
         for (let col = colIndex - 1; col >= 0; col--) {
@@ -728,7 +862,7 @@ const ProdutoList = ({ searchParams }) => {
         }
         break;
       }
-      
+
       case 'right': {
         let foundEditableCell = false;
         for (let col = colIndex + 1; col <= maxCol; col++) {
@@ -766,7 +900,7 @@ const ProdutoList = ({ searchParams }) => {
 
         if (targetY < viewportTop + padding || targetY + ITEM_HEIGHT > viewportBottom - padding) {
           const newScrollTop = Math.max(0, targetY - (containerHeight / 3));
-          
+
           container.scrollTo({
             top: newScrollTop,
             behavior: 'smooth'
@@ -843,7 +977,7 @@ const ProdutoList = ({ searchParams }) => {
       try {
         await axios.put(`/api/produtos/${id}`, dadosParaEnviar, { timeout: 10000 });
         console.log(`✅ Produto ${id} atualizado:`, dadosParaEnviar);
-        
+
       } catch (error) {
         console.error('❌ Erro ao atualizar na API:', error);
         setError(`Erro ao atualizar o produto: ${error.message}`);
@@ -1066,7 +1200,7 @@ const ProdutoList = ({ searchParams }) => {
             Carregando mais produtos...
           </div>
         )}
-        
+
         {/* End of list indicator */}
         {showNoMoreData && (
           <div className="end-of-list">
@@ -1091,13 +1225,13 @@ const ProdutoList = ({ searchParams }) => {
 
       {/* Debug Helper - só aparece em desenvolvimento */}
       {window.location.hostname === 'localhost' && (
-        <div style={{ 
-          position: 'fixed', 
-          bottom: '60px', 
-          right: '20px', 
-          background: 'rgba(0,0,0,0.8)', 
-          color: 'white', 
-          padding: '8px 12px', 
+        <div style={{
+          position: 'fixed',
+          bottom: '60px',
+          right: '20px',
+          background: 'rgba(0,0,0,0.8)',
+          color: 'white',
+          padding: '8px 12px',
           borderRadius: '6px',
           fontSize: '11px',
           fontFamily: 'monospace',
@@ -1106,11 +1240,11 @@ const ProdutoList = ({ searchParams }) => {
           maxWidth: '200px',
           lineHeight: '1.3'
         }}>
-          💡 <strong>Atalhos StatusBar:</strong><br/>
-          🖱️ Clique na descrição<br/>
-          ⌨️ F2 = Editar descrição<br/>
-          ⌨️ Ctrl+E = Editar descrição<br/>
-          ⏎ Enter = Salvar<br/>
+          💡 <strong>Atalhos StatusBar:</strong><br />
+          🖱️ Clique na descrição<br />
+          ⌨️ F2 = Editar descrição<br />
+          ⌨️ Ctrl+E = Editar descrição<br />
+          ⏎ Enter = Salvar<br />
           ⎋ Esc = Cancelar
         </div>
       )}

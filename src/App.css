@@ -983,3 +983,247 @@
   display: table;
   clear: both;
 }
+
+/* Adicionar ao arquivo src/App.css ou criar um novo arquivo src/styles/focus-improvements.css */
+
+/* =============================================== */
+/* MELHORIAS DE FOCO E NAVEGAÇÃO                 */
+/* =============================================== */
+
+/* Garantir que a tabela seja focável */
+.fixed-table-container {
+  outline: none;
+}
+
+.fixed-table-container:focus-within {
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+}
+
+/* Melhorar visibilidade do foco nas células */
+.editable-cell:focus {
+  outline: 2px solid var(--accent-color, #667eea) !important;
+  outline-offset: -2px;
+  background-color: var(--highlight-bg-color, rgba(102, 126, 234, 0.1)) !important;
+  border-color: var(--accent-color, #667eea) !important;
+  z-index: 10;
+  position: relative;
+}
+
+/* Melhorar foco em células não editáveis */
+.produtos-table td > div:focus {
+  outline: 2px solid var(--accent-color, #667eea) !important;
+  outline-offset: -2px;
+  background-color: var(--highlight-bg-color, rgba(102, 126, 234, 0.1)) !important;
+  z-index: 10;
+  position: relative;
+}
+
+/* StatusBar - Melhorar foco na descrição editável */
+.status-description.editable:focus {
+  outline: 2px solid var(--accent-color, #667eea);
+  outline-offset: 2px;
+  background: rgba(102, 126, 234, 0.15);
+}
+
+/* StatusBar - Input de edição */
+.status-edit-input:focus {
+  outline: none; /* O border já fornece feedback visual */
+}
+
+/* Melhorar contraste para usuários com high contrast */
+@media (prefers-contrast: high) {
+  .editable-cell:focus,
+  .produtos-table td > div:focus {
+    outline: 3px solid #000;
+    background-color: #ffff00;
+    color: #000;
+  }
+  
+  .status-description.editable:focus {
+    outline: 3px solid #000;
+    background-color: #ffff00;
+    color: #000;
+  }
+}
+
+/* Tema escuro - ajustes de foco */
+[data-theme="dark"] .editable-cell:focus,
+[data-theme="dark"] .produtos-table td > div:focus {
+  outline-color: #667eea;
+  background-color: rgba(102, 126, 234, 0.2);
+}
+
+[data-theme="dark"] .status-description.editable:focus {
+  outline-color: #667eea;
+  background: rgba(102, 126, 234, 0.25);
+}
+
+/* =============================================== */
+/* ESTADOS DE NAVEGAÇÃO                           */
+/* =============================================== */
+
+/* Indicador visual quando navegando por teclado */
+.keyboard-navigation-active .editable-cell:focus {
+  animation: focusPulse 0.3s ease-out;
+}
+
+@keyframes focusPulse {
+  0% { 
+    transform: scale(1);
+    box-shadow: 0 0 0 2px var(--accent-color, #667eea);
+  }
+  50% { 
+    transform: scale(1.02);
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.3);
+  }
+  100% { 
+    transform: scale(1);
+    box-shadow: 0 0 0 2px var(--accent-color, #667eea);
+  }
+}
+
+/* Classe para marcar quando estamos usando teclado */
+body.keyboard-navigation .editable-cell:focus,
+body.keyboard-navigation .produtos-table td > div:focus {
+  outline-width: 3px;
+  outline-style: solid;
+}
+
+/* =============================================== */
+/* MELHORIAS DE ACESSIBILIDADE                   */
+/* =============================================== */
+
+/* Skip link para navegação por teclado */
+.skip-to-table {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--accent-color, #667eea);
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 1000;
+  transition: top 0.2s ease;
+}
+
+.skip-to-table:focus {
+  top: 6px;
+}
+
+/* Indicador de região ativa */
+.active-region {
+  position: relative;
+}
+
+.active-region::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 2px solid var(--accent-color, #667eea);
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* =============================================== */
+/* FEEDBACK VISUAL PARA AÇÕES                    */
+/* =============================================== */
+
+/* Animação quando célula é atualizada */
+.cell-updated {
+  animation: cellUpdate 0.6s ease-out;
+}
+
+@keyframes cellUpdate {
+  0% { 
+    background-color: var(--success-color, #4caf50);
+    transform: scale(1);
+  }
+  50% { 
+    background-color: var(--success-color, #4caf50);
+    transform: scale(1.02);
+  }
+  100% { 
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+/* Animação quando navegação é bloqueada */
+.navigation-blocked {
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* =============================================== */
+/* HELPERS PARA DEBUG EM DESENVOLVIMENTO         */
+/* =============================================== */
+
+/* Só aparece em localhost */
+.debug-focus-info {
+  position: fixed;
+  top: 100px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 10px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  z-index: 1001;
+  max-width: 200px;
+  pointer-events: none;
+}
+
+/* Ocultar em produção */
+body:not(.localhost) .debug-focus-info {
+  display: none;
+}
+
+/* =============================================== */
+/* OTIMIZAÇÕES PARA DISPOSITIVOS TOUCH           */
+/* =============================================== */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Em dispositivos touch, reduzir feedback de foco */
+  .editable-cell:focus {
+    outline-width: 1px;
+  }
+  
+  /* Remover animações de foco em touch */
+  .keyboard-navigation-active .editable-cell:focus {
+    animation: none;
+  }
+  
+  /* Aumentar área de toque para StatusBar */
+  .status-description.editable {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* =============================================== */
+/* ESTADOS DE MOVIMENTO REDUZIDO                 */
+/* =============================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .keyboard-navigation-active .editable-cell:focus,
+  .cell-updated,
+  .navigation-blocked {
+    animation: none;
+  }
+  
+  .skip-to-table {
+    transition: none;
+  }
+}
