@@ -814,6 +814,74 @@ const ProdutoList = ({ searchParams }) => {
     }
   }, [filteredProdutos, selectedProduct]);
 
+  // 🆕 SISTEMA DE NAVEGAÇÃO POR TECLADO
+  useEffect(() => {
+    let isKeyboardActive = false;
+    let mouseTimeout = null;
+
+    const enableKeyboardMode = () => {
+      if (!isKeyboardActive) {
+        isKeyboardActive = true;
+        document.body.classList.add('keyboard-navigation-active');
+        document.body.classList.add('mouse-disabled');
+        console.log('🎹 Navegação por teclado ativa - Mouse desabilitado');
+      }
+    };
+
+    const disableKeyboardMode = () => {
+      if (isKeyboardActive) {
+        isKeyboardActive = false;
+        document.body.classList.remove('keyboard-navigation-active');
+        document.body.classList.remove('mouse-disabled');
+        console.log('🖱️ Mouse reabilitado');
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      // Teclas que ativam modo teclado
+      const navigationKeys = [
+        'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+        'Tab', 'Enter', 'Home', 'End', 'PageUp', 'PageDown',
+        'F2', 'Escape'
+      ];
+
+      // Verificar se é tecla de navegação ou atalho
+      if (navigationKeys.includes(e.key) || (e.ctrlKey && e.key === 'e')) {
+        enableKeyboardMode();
+      }
+    };
+
+    const handleMouseMove = () => {
+      // Debounce para evitar ativações desnecessárias
+      clearTimeout(mouseTimeout);
+      mouseTimeout = setTimeout(() => {
+        disableKeyboardMode();
+      }, 100);
+    };
+
+    const handleMouseClick = () => {
+      // Desativar imediatamente no clique
+      disableKeyboardMode();
+    };
+
+    // Adicionar listeners
+    document.addEventListener('keydown', handleKeyDown, true);
+    document.addEventListener('mousemove', handleMouseMove, { passive: true });
+    document.addEventListener('mousedown', handleMouseClick, true);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mousedown', handleMouseClick, true);
+      clearTimeout(mouseTimeout);
+
+      // Remover classes ao desmontar componente
+      document.body.classList.remove('keyboard-navigation-active');
+      document.body.classList.remove('mouse-disabled');
+    };
+  }, []);
+
   // Navegação por teclado
   const handleKeyNavigation = useCallback((direction, virtualRowIndex, colIndex) => {
     console.log(`🎯 Navegação: ${direction}, virtualRow: ${virtualRowIndex}, col: ${colIndex}`);

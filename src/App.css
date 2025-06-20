@@ -1227,3 +1227,71 @@ body:not(.localhost) .debug-focus-info {
     transition: none;
   }
 }
+
+/* =============================================== */
+/* SISTEMA DE NAVEGAÇÃO POR TECLADO               */
+/* =============================================== */
+
+/* Desabilitar mouse durante navegação por teclado */
+.mouse-disabled * {
+  pointer-events: none !important;
+}
+
+/* Exceções: manter interação em elementos essenciais */
+.mouse-disabled .cell-input,
+.mouse-disabled .status-edit-input,
+.mouse-disabled input,
+.mouse-disabled textarea,
+.mouse-disabled button,
+.mouse-disabled select {
+  pointer-events: auto !important;
+}
+
+/* Remover efeitos de hover */
+.mouse-disabled .produtos-table tr:hover {
+  background-color: transparent !important;
+  transform: none !important;
+}
+
+.mouse-disabled .editable-cell:hover {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+.mouse-disabled .button:hover,
+.mouse-disabled .green-button:hover {
+  background-color: #4caf50 !important;
+  transform: none !important;
+}
+
+/* Melhorar foco durante navegação por teclado */
+.keyboard-navigation-active .editable-cell:focus {
+  outline: 3px solid #667eea !important;
+  outline-offset: 2px !important;
+  background-color: rgba(102, 126, 234, 0.15) !important;
+  border-color: #667eea !important;
+  z-index: 10 !important;
+  position: relative !important;
+}
+
+.keyboard-navigation-active .produtos-table tr.highlighted {
+  background-color: rgba(102, 126, 234, 0.2) !important;
+  border-left: 4px solid #667eea !important;
+}
+
+/* Indicador visual (desenvolvimento) */
+.keyboard-navigation-active::before {
+  content: "🎹 NAVEGAÇÃO POR TECLADO";
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 9999;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
